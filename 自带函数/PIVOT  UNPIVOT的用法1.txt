@@ -1,0 +1,95 @@
+关于PIVOT/UNPIVOT的用法  
+
+
+PIVOT的用法： 
+
+首先创建测试表，然后插入测试数据 
+
+
+create table test(id int,name varchar(20),quarter int,profile int)
+                        insert into test values(1,'a',1,1000)
+                        insert into test values(1,'a',2,2000)
+                        insert into test values(1,'a',3,4000)
+                        insert into test values(1,'a',4,5000)
+                        insert into test values(2,'b',1,3000)
+                        insert into test values(2,'b',2,3500)
+                        insert into test values(2,'b',3,4200)
+                        insert into test values(2,'b',4,5500)
+                        select * from test
+                        id name quarter profile
+                        ----------- -------------- ----------- -----------
+                        1 a 1 1000
+                        1 a 2 2000
+                        1 a 3 4000
+                        1 a 4 5000
+                        2 b 1 3000
+                        2 b 2 3500
+                        2 b 3 4200
+                        2 b 4 5500
+                        (8 row(s) affected)
+                        使用PIVOT将四个季度的利润转换成横向显示:
+                        select id,name,
+                        [1] as "一季度",
+                        [2] as "二季度",
+                        [3] as "三季度",
+                        [4] as "四季度"
+                        from
+                        test
+                        pivot
+                        (
+                        sum(profile)
+                        for quarter in
+                        ([1],[2],[3],[4])
+                        )
+                        as pvt
+                        id name 一季度 二季度 三季度 四季度
+                        -------- --------- ----------- -------- ------- -------
+                        1 a 1000 2000 4000 5000
+                        2 b 3000 3500 4200 5500
+                        (2 row(s) affected)
+ 
+
+
+
+
+
+
+UNPIVOT的用法： 
+
+
+
+首先建立测试表，然后插入测试数据
+                        drop table test
+                        create table test(id int,name varchar(20), Q1 int, Q2 int, Q3 int, Q4 int)
+                        insert into test values(1,'a',1000,2000,4000,5000)
+                        insert into test values(2,'b',3000,3500,4200,5500)
+                        select * from test
+                        id name Q1 Q2 Q3 Q4
+                        -------- ------- --------- --------- -------- --------
+                        1 a 1000 2000 4000 5000
+                        2 b 3000 3500 4200 5500
+                        (2 row(s) affected)
+                        使用UNPIVOT，将同一行中四个季度的列数据转换成四行数据：
+                        select id,name,quarter,profile
+                        from
+                        test
+                        unpivot
+                        (
+                        profile
+                        for quarter in
+                        ([Q1],[Q2],[Q3],[Q4])
+                        )
+                        as unpvt
+                        id name quarter profile
+                        ----------- ----------- ---------- -----------
+                        1 a Q1 1000
+                        1 a Q2 2000
+                        1 a Q3 4000
+                        1 a Q4 5000
+                        2 b Q1 3000
+                        2 b Q2 3500
+                        2 b Q3 4200
+                        2 b Q4 5500
+                        (8 row(s) affected)
+ 
+ 

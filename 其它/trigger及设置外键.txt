@@ -1,0 +1,14 @@
+--可以用一个触发器：
+create trigger tri_stu
+on 地址表
+for update
+as
+declare @id int
+declare @address varchar(20)
+select @id=id,@address=address from inserted
+update 学生表 set address=@address where id=@id..id是2个表相关联的列
+
+--建外键：
+alter table 外键表
+add constraint fk_stu
+foreign key(外键列) references 主键表（主键列） 

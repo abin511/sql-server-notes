@@ -1,0 +1,30 @@
+--over()函数用于将记录集进行分组或排序
+--row_number()、rank()、dense_rank()、ntile()函数则配合over用于生成排序的序号
+CREATE TABLE SpeakerStats( 
+speaker VARCHAR(10) NOT NULL PRIMARY KEY
+, track VARCHAR(10) NOT NULL
+, score INT NOT NULL
+, pctfilledevals INT NOT NULL
+, numsessions INT NOT NULL)
+
+SET NOCOUNT ON
+
+INSERT INTO SpeakerStats VALUES('Dan', 'Sys', 3, 22, 4)
+INSERT INTO SpeakerStats VALUES('Ron', 'Dev', 9, 30, 3)
+INSERT INTO SpeakerStats VALUES('Kathy', 'Sys', 8, 27, 2)
+INSERT INTO SpeakerStats VALUES('Suzanne', 'DB', 9, 30, 3)
+INSERT INTO SpeakerStats VALUES('Joe', 'Dev', 6, 20, 2)
+INSERT INTO SpeakerStats VALUES('Robert', 'Dev', 6, 28, 2)
+INSERT INTO SpeakerStats VALUES('Mike', 'DB', 8, 20, 3)
+INSERT INTO SpeakerStats VALUES('Michele', 'Sys', 8, 31, 4)
+INSERT INTO SpeakerStats VALUES('Jessica', 'Dev', 9, 19, 1)
+INSERT INTO SpeakerStats VALUES('Brian', 'Sys', 7, 22, 3)
+INSERT INTO SpeakerStats VALUES('Kevin', 'DB', 7, 25, 4)
+
+SELECT speaker, track, score,
+ROW_NUMBER() OVER(/*partition by data*/ ORDER BY score DESC) AS rownum,/*增加自动增长列*/
+RANK() OVER(/*partition by data*/ORDER BY score DESC) AS rnk,/*重复的算名词*/
+DENSE_RANK() OVER(/*partition by data*/ORDER BY score DESC) AS drnk, /*重复的不算名次*/
+ntile(2) OVER(/*partition by data*/ORDER BY score DESC) AS nt /*相当于把整个结果集分成n份*/
+FROM SpeakerStats
+ORDER BY score DESC

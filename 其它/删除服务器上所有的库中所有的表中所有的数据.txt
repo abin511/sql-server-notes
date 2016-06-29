@@ -1,0 +1,31 @@
+/*删除服务器上所有的库中所有的表中所有的数据*/
+
+--获取需要删除数据的数据库名称
+SET NOCOUNT ON
+	DECLARE @TABLE TABLE(KEYS INT,DBNAME VARCHAR(50))
+	INSERT INTO @TABLE
+	Select ROW_NUMBER() OVER(ORDER BY NAME) AS CN, Name FROM Master..SysDatabases 
+	where name not in('BooKe.OA.Config','BooKe.OA.User','Booke.OA.Form','master','model','msdb','tempdb','northwind','pubs','ReportServer','ReportServerTempDB')
+	DECLARE @CN INT SET @CN = @@ROWCOUNT
+	DECLARE @DI INT SET @DI=1
+	DECLARE @DB VARCHAR(50)
+	declare @sql varchar(512)
+	--循环数据库据
+	WHILE(@DI <= @CN) BEGIN
+		SELECT @DB = DBNAME FROM @TABLE WHERE KEYS = @DI
+		SET @DI += 1
+		SET @SQL = ' USE ['+@DB+']'
+		SET @SQL = @SQL + ' DECLARE @TABLE TABLE(KEYS INT IDENTITY(1,1), NAME VARCHAR(50))'
+		SET @SQL = @SQL + ' INSERT INTO @TABLE SELECT NAME FROM SYSOBJECTS WHERE XTYPE=''U'' '
+		SET @SQL = @SQL + ' DECLARE @CN INT SET @CN = @@ROWCOUNT'
+		SET @SQL = @SQL + ' DECLARE @TI INT SET @TI = 1'
+		SET @SQL = @SQL + ' DECLARE @TBNAME VARCHAR(50)'
+		SET @SQL = @SQL + ' WHILE ( @TI <= @CN ) BEGIN'
+		SET @SQL = @SQL +	' SELECT @TBNAME = NAME FROM @TABLE WHERE KEYS = @TI'
+		SET @SQL = @SQL +	' SET @TI = @TI + 1'
+		SET @SQL = @SQL +	' EXEC( ''TRUNCATE TABLE '' + @TBNAME)'
+		SET @SQL = @SQL +' END'
+		print @SQL
+		exec(@SQL)
+	end
+SET NOCOUNT OFF

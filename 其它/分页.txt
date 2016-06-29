@@ -1,0 +1,387 @@
+﻿/********************************************邹建分页存储过程**************************************************/
+if exists (select * from dbo.sysobjects where id = object_id(N'[dbo].[public_page]') 
+and OBJECTPROPERTY(id, N'IsProcedure') = 1)
+drop procedure [dbo].[public_page]
+GO
+/*
+declare @a int  
+declare @b int    
+exec public_page 'HongTaoK_DB_Cti.dbo.SheetRecord','*',18,1,'RecordID',1,'','RecordID',0,@a,@b    
+*/  
+--邹建分页存储过程    
+CREATE procedure public_page 
+@sql_Table nvarchar(1000),		--要显示的表或多个表的连接    
+@field nvarchar(500) = '*',	--要显示的字段列表    
+@pageSize int = 20,				--每页显示的记录个数    
+@PageCurrent int = 1,			--要显示那一页的记录    
+@order_Field nvarchar(200) = null,  --排序字段列表或条件    
+@sort bit = 1,					--排序方法，0为升序，1为降序(如果是多字段排列Sort指代最后一个排序字段的排列顺序(最后一个排序字段不加排序标记)--程序传参如：' SortA Asc,SortB Desc,SortC ')    
+@strWhere nvarchar(1000) = null,--查询条件,不需where    
+@pkid nvarchar(100),			--主表的主键    
+@dist bit = 0,					--是否添加查询字段的 DISTINCT 默认0不添加/1添加    
+@pageCount int = 1 output,      --查询结果分页后的总页数    
+@recordNum int = 1 output       --查询到的记录数    
+AS    
+SET NOCOUNT ON    
+Declare @sqlTmp nvarchar(1000)    --存放动态生成的SQL语句    
+Declare @strTmp nvarchar(1000)    --存放取得查询结果总数的查询语句    
+Declare @strID  nvarchar(1000)    --存放取得查询开头或结尾ID的查询语句    
+Declare @strSortType nvarchar(10) --数据排序规则A    
+Declare @strFSortType nvarchar(10)--数据排序规则B    
+Declare @SqlSelect nvarchar(50)   --对含有DISTINCT的查询进行SQL构造    
+Declare @SqlCounts nvarchar(50)   --对含有DISTINCT的总数查询进行SQL构造    
+    
+if @dist  = 0    
+begin    
+    set @SqlSelect = 'select '    
+    set @SqlCounts = 'Count(*)'    
+end    
+else    
+begin    
+    set @SqlSelect = 'select distinct '    
+    set @SqlCounts = 'Count(DISTINCT '+@pkid+')'    
+end    
+    
+if @sort=0    
+begin    
+    set @strFSortType=' ASC '    
+    set @strSortType=' DESC '    
+end    
+else    
+begin    
+    set @strFSortType=' DESC '    
+    set @strSortType=' ASC '    
+end    
+--------生成查询语句--------    
+--此处@strTmp为取得查询结果数量的语句    
+if @strWhere is null or @strWhere=''     --没有设置显示条件    
+begin    
+    set @sqlTmp =  @field + ' From ' + @sql_Table    
+    set @strTmp = @SqlSelect+' @recordNum='+@SqlCounts+' FROM '+@sql_Table    
+    set @strID = ' From ' + @sql_Table    
+end    
+else    
+begin    
+    set @sqlTmp = + @field + 'From ' + @sql_Table + ' where (1>0) ' + @strWhere    
+    set @strTmp = @SqlSelect+' @recordNum='+@SqlCounts+' FROM '+@sql_Table + ' where (1>0) ' + @strWhere    
+    set @strID = ' From ' + @sql_Table + ' where (1>0) ' + @strWhere    
+end    
+----取得查询结果总数量-----    
+exec sp_executesql @strTmp,N'@recordNum int out ',@recordNum out    
+declare @tmpCounts int    
+if @recordNum = 0    
+    set @tmpCounts = 1    
+else    
+    set @tmpCounts = @recordNum    
+    --取得分页总数    
+    set @pageCount=(@tmpCounts+@pageSize-1)/@pageSize    
+    /**//**当前页大于总页数 取最后一页**/    
+    if @PageCurrent>@pageCount    
+        set @PageCurrent=@pageCount    
+    --/*-----数据分页2分处理-------*/    
+    declare @pageIndex int --总数/页大小    
+    declare @lastcount int --总数%页大小     
+    set @pageIndex = @tmpCounts/@pageSize    
+    set @lastcount = @tmpCounts%@pageSize    
+    if @lastcount > 0    
+        set @pageIndex = @pageIndex + 1    
+    else    
+        set @lastcount = @pagesize    
+    --//***显示分页    
+    if @strWhere is null or @strWhere=''     --没有设置显示条件    
+    begin    
+        if @pageIndex<2 or @PageCurrent<=@pageIndex / 2 + @pageIndex % 2   --前半部分数据处理    
+            begin     
+                set @strTmp=@SqlSelect+' top '+ CAST(@pageSize as VARCHAR(4))+' '+ @field+' from '+@sql_Table    
+                        +' where '+@pkid+' not in('+ @SqlSelect+' top '+ CAST(@pageSize*(@PageCurrent-1) as Varchar(20)) +' '+ @pkid +' from '+@sql_Table    
+                        +' order by '+ @order_Field +' '+ @strFSortType+')'    
+                        +' order by '+ @order_Field +' '+ @strFSortType     
+            end    
+        else    
+            begin    
+            set @PageCurrent = @pageIndex - @PageCurrent + 1 --后半部分数据处理    
+                if @PageCurrent <= 1 --最后一页数据显示    
+                    set @strTmp=@SqlSelect+' * from ('+@SqlSelect+' top '+ CAST(@lastcount as VARCHAR(4))+' '+ @field+' from '+@sql_Table    
+                        +' order by '+ @order_Field +' '+ @strSortType+') AS TempTB'+' order by '+ @order_Field +' '+ @strFSortType     
+                else                    
+                    set @strTmp=@SqlSelect+' * from ('+@SqlSelect+' top '+ CAST(@pageSize as VARCHAR(4))+' '+ @field+' from '+@sql_Table    
+                        +' where '+@pkid+' not in('+ @SqlSelect+' top '+ CAST(@pageSize*(@PageCurrent-2)+@lastcount as Varchar(20)) +' '+ @pkid +' from '+@sql_Table    
+                        +' order by '+ @order_Field +' '+ @strSortType+')'    
+                        +' order by '+ @order_Field +' '+ @strSortType+') AS TempTB'+' order by '+ @order_Field +' '+ @strFSortType     
+            end    
+    end    
+    else --有查询条件    
+    begin    
+        if @pageIndex<2 or @PageCurrent<=@pageIndex / 2 + @pageIndex % 2   --前半部分数据处理    
+        begin     
+                set @strTmp=@SqlSelect+' top '+ CAST(@pageSize as VARCHAR(4))+' '+ @field +' from  '+@sql_Table    
+                    +' where '+@pkid+' not in('+ @SqlSelect+' top '+ CAST(@pageSize*(@PageCurrent-1) as Varchar(20)) +' '+ @pkid +' from '+@sql_Table    
+                    +' Where (1>0) ' + @strWhere + ' order by '+ @order_Field +' '+ @strFSortType+')'    
+                    +' ' + @strWhere + ' order by '+ @order_Field +' '+ @strFSortType                     
+        end    
+        else    
+        begin     
+            set @PageCurrent = @pageIndex-@PageCurrent+1 --后半部分数据处理    
+            if @PageCurrent <= 1 --最后一页数据显示    
+                    set @strTmp=@SqlSelect+' * from ('+@SqlSelect+' top '+ CAST(@lastcount as VARCHAR(4))+' '+ @field+' from '+@sql_Table    
+                        +' where (1>0) '+ @strWhere +' order by '+ @order_Field +' '+ @strSortType+') AS TempTB'+' order by '+ @order_Field +' '+ @strFSortType    
+            else    
+                    set @strTmp=@SqlSelect+' * from ('+@SqlSelect+' top '+ CAST(@pageSize as VARCHAR(4))+' '+ @field+' from '+@sql_Table    
+                        +' where '+@pkid+' not in('+ @SqlSelect+' top '+ CAST(@pageSize*(@PageCurrent-2)+@lastcount as Varchar(20)) +' '+ @pkid +' from '+@sql_Table    
+                        +' where (1>0) '+ @strWhere +' order by '+ @order_Field +' '+ @strSortType+')'    
+                        + @strWhere +' order by '+ @order_Field +' '+ @strSortType+') AS TempTB'+' order by '+ @order_Field +' '+ @strFSortType     
+        end        
+    end    
+------返回查询结果-----    
+exec sp_executesql @strTmp      
+SET NOCOUNT OFF 
+
+/******************************针对分组数据的统计*************************************************/
+if exists (select * from dbo.sysobjects where id = object_id(N'[dbo].[web_pager]') 
+and OBJECTPROPERTY(id, N'IsProcedure') = 1)
+drop procedure [dbo].[web_pager]
+GO
+/*
+针对分组数据，其中条件必须加where 排序必须加order by desc ，分组必须加group by
+declare @a int   
+exec web_pager @a,15,1,'HongTaoK_DB_Cti.dbo.AcdRecord',
+'convert(varchar(10),AcdTime,120) as AcdTime,AgentID,AcdDn,count(RecordID) as stat','RecordID',
+'where AgentID not in (-1) and AgentID like ''%100%'' 
+and AcdTime > ''2009-02-10'' and AcdTime < dateadd(day,+1,convert(datetime,''2009-02-21''))',
+'group by convert(varchar(10),AcdTime,120),AgentID,AcdDn','ORDER BY AcdTime desc'
+*/
+CREATE PROCEDURE web_pager   
+(  
+    @rowsTotal INT OUTPUT,          --输出记录总数  
+    @pageSize INT,                  --每页记录数  
+    @pageNow INT,                   --当前页  
+    @tableName VARCHAR(1000),        --表名  
+    @fieldName VARCHAR(4000),        --查询字段  
+    @strWhere VARCHAR(2000),       --WHERE条件,必须加where  
+ @groupField VARCHAR(1000),  --分组的字段  
+    @orderField VARCHAR(200)        --排序条件  
+)  
+AS  
+ DECLARE @beginRow INT  
+ DECLARE @endRow INT  
+ DECLARE @tempLimit VARCHAR(200)  
+ DECLARE @tempCount NVARCHAR(1000)  
+ DECLARE @tempMain VARCHAR(1000)  
+  
+ SET NOCOUNT ON  
+ SET @beginRow = (@pageNow - 1) * @pageSize    + 1  
+ SET @endRow = @pageNow * @pageSize  
+ SET @tempLimit =' WHERE rows BETWEEN ' + str(@beginRow) +' AND '+ str(@endRow)  
+   
+ --输出参数为总记录数  
+ SET @tempCount = ' SELECT @rowsTotal = COUNT(*) FROM (SELECT '+@fieldName+' FROM '+@tableName+' '+@strWhere+' '+@groupField+') AS my_temp'  
+ EXECUTE sp_executesql @tempCount,N'@rowsTotal INT OUTPUT',@rowsTotal OUTPUT  
+     
+-- --主查询返回结果集  
+ SET @tempMain = 'SELECT * FROM (select ROW_NUMBER() OVER ('+@orderField+') AS rows,*   
+    from (SELECT '+@fieldName+' FROM '+@tableName+' '+@strWhere+' '+@groupField+') AS TEMP1) AS TEMP2' + @tempLimit  
+ EXECUTE (@tempMain)  
+ SET NOCOUNT OFF  
+
+/********************************************模拟邹建分页存储过程************************************************/
+/*  
+declare @a int  
+declare @b int  
+exec Page_Public 1,20,'*','HongTaoK_DB_Cti.dbo.BlackList','BlackID','PhoneNumber like ''%110%'' ','',@a,@b  
+*/  
+-- 获取指定页的数据       
+CREATE procedure  Page_Public         
+@PageIndex   int,                               --页面索引,从datagrid中获取       
+@PageSize     int,                              --页面显示数量，从datagrid中获取        
+@strGetFields   nvarchar(1000),                 --需要查询的列       
+@tableName   nvarchar(100)   ,                  --表名称       
+@ID   nvarchar(100),                            --主键,（为表的主键）       
+@strWhere     nvarchar(1000)   ='',             --查询条件   (注意:   不要加   where)       
+@sort   nvarchar(100)=   '',     --排序      
+@PageCount   int   OUT,                         --返回分页后页数    
+@RecordCount   int   OUT                        --返回记录总数          
+  as       
+  declare   @countSelect   nvarchar(2000)        
+  --设置统计查询语句       
+  if   len(@strWhere)   =0         
+  --如果没有查询条件       
+          begin       
+                  set   @countSelect=N'select @CountRecord = count(*) from '+@tableName       
+          end       
+  else       
+  --否则       
+          begin       
+                  set   @countSelect=N'select @CountRecord = count(*) from '+@tableName+' where '+@strWhere       
+          end       
+  --执行并返回总数       
+  exec   sp_executesql   @countSelect,N'@CountRecord   int   output',@RecordCount   output       
+  set   @PageCount   =   CEILING(@RecordCount   *   1.0   /   @PageSize)     
+         
+  set   nocount   on        
+  declare   @SQLSTR   nvarchar(3000)       
+  --实际总共的页码小于当前页码   或者   最大页码       
+  if   @PageCount>=0       
+          --如果分页后页数大于0       
+          begin       
+                  if   @PageCount<=@PageIndex   and     @PageCount>0       --如果实际总共的页数小于datagrid索引的页数       
+                          --or   @PageCount=1       
+                          begin       
+                                  --设置为最后一页       
+        set   @PageIndex=@PageCount-1       
+                          end       
+                  else   if   @PageCount<=@PageIndex   and     @PageCount=0       
+                          begin       
+                                  set   @PageIndex=0;       
+                          end       
+  else   if   @PageIndex = 1 --如果为第一页       
+  set   @PageIndex = 0       
+  else         
+  set   @PageIndex  =  @PageIndex - 1       
+          end       
+        
+  --设置排序       
+  if   len(@sort)   >   0       
+ set  @sort  =  N' ORDER BY ' + @sort       
+  else       
+    set  @sort  =  N' ORDER BY ' + @ID + ' asc '   
+  
+ --如果用普通的sql而不使用存储过程调用     
+  declare @ID_temp varchar(100)     
+  set @ID_temp='cast('+@ID+' as nvarchar(100)) '     
+  declare @returnValue   nvarchar(100)     
+  set @returnValue=','''+cast(@RecordCount as nvarchar(100)) + ''' as [returnValue] '--   +'|'+cast(@PageCount   as   nvarchar(100))+'|'+'''+'+@ID_temp+'   as   [returnValue]   '     
+      
+  --如果用普通的sql而不使用存储过程调用     
+  IF   @PageIndex = 0 OR @PageCount <= 1     --如果为第一页     
+          begin     
+                  if len(@strWhere) =0     
+                          begin     
+                                  SET @SQLSTR =N'SELECT TOP '+STR( @PageSize)+@strGetFields+@returnValue+' FROM '+@tableName+@sort     
+                          end     
+                  else     
+                          begin     
+                                  SET @SQLSTR =N'SELECT TOP '+STR(@PageSize)+@strGetFields+@returnValue+' FROM '+@tableName+' where '+@strWhere+@sort     
+                          end     
+          end     
+  ELSE   IF  @PageIndex = @PageCount - 1   --如果为最后一页                             
+          begin     
+                  if   len(@strWhere)   =0     
+                          begin     
+                                  SET   @SQLSTR   =N'   SELECT   '+@strGetFields+@returnValue+'   FROM   '+@tableName+'   where   '+@ID+'   not   in     (   SELECT   TOP   '+STR(/*@RecordCount   -   */@PageSize   *   @PageIndex   )+@ID+'     FROM     '+@t
+ableName+@sort+'   )   '   +   @sort       
+                          end     
+ else     
+                          begin     
+                                  SET   @SQLSTR   =N'   SELECT   '+@strGetFields+@returnValue+'   FROM   '+@tableName+'   where   '+@ID+'   not   in     (   SELECT   TOP   '+STR(/*@RecordCount   -   */   @PageSize   *   @PageIndex   )+@ID+'     FROM     '
++@tableName+'   where   '+@strWhere+@sort+'   )     and   '+@strWhere+@sort     
+                          end     
+          end     
+  ELSE                                                                                                                             --否则执行         
+          begin     
+                    if   len(@strWhere)   =0     
+                          begin     
+                                  SET   @SQLSTR   =N'   SELECT   TOP     '+STR(   @PageSize   )+@strGetFields+@returnValue+'   FROM   '+@tableName+'   where   '+@ID+'   not   in     (   SELECT   TOP   '+STR(   /*@RecordCount   -   */@PageSize   *   @PageI
+ndex   )+@ID+'     FROM     '+@tableName+@sort+'   )   '   +   @sort     
+                          end     
+          else     
+      begin     
+                              SET   @SQLSTR   =N'   SELECT   TOP     '+STR(   @PageSize   )+@strGetFields+@returnValue+'   FROM   '+@tableName+'   where   '+@ID+'   not   in     (SELECT   TOP   '+STR(/*@RecordCount   -   */   @PageSize   *   @PageIndex   
+)+@ID+'     FROM     '+@tableName+'   where   '+@strWhere+@sort+'   )and   '+@strWhere+@sort     
+                          end     
+          end     
+  print   @sqlstr     
+  EXEC   (@SQLSTR)     
+  set   nocount   off    
+
+
+/*******************************目前项目中的分页***************************************************/
+/****** Object:  StoredProcedure [dbo].[MS_P_GT_GETTABLES]    Script Date: 05/25/2012 10:46:27 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE PROC [dbo].[MS_P_GT_GETTABLES]
+	--本过程只支持2个表的联合搜索 , 主表必须表示为 别名 a
+	--表的名字可以用 [table] 来显示
+	--若单一表搜索 , 不需要附加任何别名
+	@TABLE        NVARCHAR(100),
+	@COLUNS        NVARCHAR(512),
+	@ORDER        NVARCHAR(200),
+	@KEYS         NVARCHAR(512),
+	@PAGE         INT,
+	@PAGESIZE     INT,
+	@THISPAGE     INT OUTPUT,
+	@PAGECOUNT    INT OUTPUT,
+	@ACCCOUNT     INT OUTPUT 
+AS
+	SET NOCOUNT ON
+
+	DECLARE @SID NVARCHAR(15) , @IKEY NVARCHAR(512) , @SKEY NVARCHAR(512) , @IORDER NVARCHAR(128) , @SQL NVARCHAR(2000)
+	--设置初始值
+	SET @THISPAGE = 1
+	SET @PAGECOUNT = 1
+	SET @ACCCOUNT = 0
+	--无数据操作
+	IF ((ISNULL(@COLUNS , '') = '') OR (ISNULL(@TABLE , '') = '')) BEGIN
+		SET NOCOUNT OFF
+		RETURN
+	END
+	--设置列前空格
+	SET @COLUNS = ' ' + @COLUNS
+	--搜索表的存在情况 是 2 个 或是 1 个 表 搜索
+	IF (CHARINDEX(',' , @TABLE) <= 0)
+		SET @SID = 'ID'
+	ELSE
+		SET @SID = 'A.ID'
+	--附加条件搜索
+	IF (ISNULL(@KEYS , '') = '') BEGIN
+		SET @IKEY = ''
+		SET @SKEY = ' WHERE '
+	END
+	ELSE BEGIN
+		SET @IKEY = ' WHERE ' + @KEYS
+		SET @SKEY = ' WHERE ' + @KEYS + ' AND '
+	END
+	--指定排序规则
+	IF (ISNULL(@ORDER , '') = '')
+		SET @IORDER = ''
+	ELSE
+		SET @IORDER = ' ORDER BY ' + @ORDER
+	--求总数
+	SET @SQL = N'SELECT @COUNT = COUNT(*) FROM ' + @TABLE + @IKEY
+	--PRINT(@SQL)	
+	EXECUTE SP_EXECUTESQL @SQL , N'@COUNT INT OUTPUT' , @ACCCOUNT OUTPUT
+	--判断总数
+	IF (ISNUMERIC(@ACCCOUNT) <= 0) SET @ACCCOUNT = 0
+	IF (@ACCCOUNT <= 0) BEGIN
+		SET NOCOUNT OFF
+		RETURN
+	END
+    --------------------------------------------------------------------------------------------
+	--指定缺省分页记录数
+	IF (ISNUMERIC(@PAGESIZE) <= 0) SET @PAGESIZE = 30
+	IF (@PAGESIZE <= 0) SET @PAGESIZE = 30
+	--求页数
+	SET @PAGECOUNT = @ACCCOUNT / @PAGESIZE
+	IF ((@ACCCOUNT % @PAGESIZE) <> 0) SET @PAGECOUNT = @PAGECOUNT + 1
+	--设置当前页
+	SET @THISPAGE = @PAGE
+	IF (@PAGE > @PAGECOUNT) SET @THISPAGE = @PAGECOUNT
+	--第一页
+	IF (@THISPAGE = 1) BEGIN
+		SET @SQL = N'SELECT TOP ' + CAST(@PAGESIZE AS NVARCHAR(10)) + @COLUNS + ' FROM ' + @TABLE + @IKEY + @IORDER
+		--PRINT(@SQL)	
+		EXECUTE SP_EXECUTESQL @SQL
+		SET NOCOUNT OFF
+		RETURN
+	END
+	--其他页
+	--按ID倒序先
+	IF (CHARINDEX(' DESC' , LOWER(@ORDER)) > 0)
+		SET @SQL = N'SELECT TOP ' + CAST(@PAGESIZE AS NVARCHAR(10)) + @COLUNS + ' FROM ' + @TABLE + @SKEY + @SID + ' < (SELECT MIN(ID) FROM (SELECT TOP ' + CAST(((@THISPAGE - 1) * @PAGESIZE) AS NVARCHAR(10)) + N' ' + @SID + ' FROM ' + @TABLE + @IKEY + @IORDER + ') AS MINTABLE)' + @IORDER
+	ELSE
+		SET @SQL = N'SELECT TOP ' + CAST(@PAGESIZE AS NVARCHAR(10)) + @COLUNS + ' FROM ' + @TABLE + @SKEY + @SID + ' > (SELECT MAX(ID) FROM (SELECT TOP ' + CAST(((@THISPAGE - 1) * @PAGESIZE) AS NVARCHAR(10)) + N' ' + @SID + ' FROM ' + @TABLE + @IKEY + @IORDER + ') AS MAXTABLE)' + @IORDER
+
+	EXECUTE SP_EXECUTESQL @SQL
+	SET NOCOUNT OFF
+	RETURN

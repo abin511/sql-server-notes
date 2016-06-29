@@ -1,0 +1,31 @@
+/*
+使用 APPLY 运算符可以为实现查询操作的外部表表达式返回的每个行调用表值函数。表值函数作为右输入，外部表表达式作为左输入。通过对右输入求值来获得左输入每一行的计算结果，生成的行被组合起来作为最终输出。APPLY 运算符生成的列的列表是左输入中的列集，后跟右输入返回的列的列表。
+
+注意：若要使用 APPLY，数据库兼容级别必须为 90。
+
+APPLY 有两种形式：CROSS APPLY 和 OUTER APPLY。CROSS APPLY 仅返回外部表中通过表值函数生成结果集的行。OUTER APPLY 既返回生成结果集的行，也返回不生成结果集的行，其中表值函数生成的列中的为 NULL。
+*/
+/*
+APPLY 操作符作用于 FROM 字句中，它的具体语法如下：
+FROM left_table_source
+    { CROSS | OUTER } APPLY right_table_source
+
+在上面的语法中，left_table_source 表示坐输入；right_table_source 表示右输入，一般是表值函数，但亦可是视图、表、派生表。
+*/
+
+
+create table tb(id int,NAME varchar(30)) 
+insert into tb values(1,'aa,bb') 
+insert into tb values(2,'aaa,bbb,ccc') 
+go 
+
+SELECT * FROM tb
+select * --A.id, B.[value] 
+from( 
+    select id, [NAME] = convert(xml,' <root> <v>' + replace([NAME], ',', ' </v> <v>') + ' </v> </root>') from tb 
+)A 
+OUTER APPLY( 
+    select XNAME = N.T.value('.', 'varchar(100)') from A.[NAME].nodes('/root/v') N(T) 
+)B 
+
+DROP TABLE TB

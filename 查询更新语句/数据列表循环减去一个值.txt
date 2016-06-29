@@ -1,0 +1,26 @@
+declare @tbl table(id int,duration int,dt date)
+insert @tbl(id,duration,dt)
+select 1 as id,20 as duration,'2012-01-01' as dt union all
+select 2,20,'2012-01-03' union all
+select 3,40,'2012-01-07' union all
+select 4,50,'2012-01-04' union all
+select 5,20,'2012-01-02' union all
+select 6,30,'2012-01-08' union all
+select 7,10,'2012-01-12' union all
+select 8,60,'2012-01-11' union all
+select 9,20,'2012-01-09' union all
+select 10,5,'2012-01-03' union all
+select 11,10,'2012-01-03' union all
+select 16,10,'2012-01-04'
+
+declare @sub int=118
+;with t as( select *,ROW_NUMBER () OVER(ORDER BY dt,id) as rowid FROM @tbl)
+	update @tbl set duration = b.Newduration from @tbl as a join
+	(
+		select a.id,
+		case when sum(b.duration)<@sub then 0 else case when sum(b.duration)-@sub<a.duration then sum(b.duration)-@sub else a.duration end end as Newduration
+		from t a
+		left join t b on b.rowid <= a.rowid
+		group by a.rowid,a.id,a.duration,a.dt
+	) as b ON A.ID = B.ID
+select * from @tbl ORDER BY dt,id

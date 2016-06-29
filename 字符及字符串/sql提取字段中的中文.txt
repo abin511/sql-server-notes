@@ -1,0 +1,22 @@
+create   function   fun_getCN(@str   nvarchar(4000))   
+  returns   nvarchar(4000)   
+  as   
+  begin   
+  declare   @word   nchar(1),@CN   nvarchar(4000)   
+  set   @CN=''   
+  while   len(@str)>0   
+  begin   
+  set   @word=left(@str,1)   
+  if unicode(@word)   between   19968   and   19968+20901 
+      set   @CN=@CN+@word
+  set   @str=right(@str,len(@str)-1)   
+  end   
+  return   @CN   
+  end   
+
+select dbo.fun_getCN('ASDKGÂÛÌ³KDL')
+ÂÛÌ³
+select dbo.fun_getCN('ASDKGÕ“‰¯KDL')
+Õ“‰¯
+select dbo.fun_getCN('ASDKDL')
+¿Õ×Ö·û´®

@@ -1,0 +1,34 @@
+COALESCE()
+用法 Select  COALESCE(null,null,'1','2') 返回1
+作用 返回其参数中第一个非null的表达式。COALESCE后面任意表达式，一直检查返回非空的表达式
+
+isnull()
+用法 Select  isnull(null,0) 返回 0
+作用 遇到null 返回 指定值
+
+nullif()
+用法 nullif('aa','aa')  返回 null,  nullif(1,2)  返回 1
+作用 两个值相等则返回null 
+
+/*********************************************/
+
+ 	SELECT HopeBe_Empty = ISNULL(ISNULL('',''),0)  
+	--返回 '' 
+	--说明：这个可以理解吧 
+
+        SELECT HopeBe_n_0 = ISNULL(NULLIF('',''),'0000')  
+       --返回 '' 
+       --说明：这个比较经典，请往下看
+
+ 
+        SELECT HopeBe_n_0 = ISNULL(NULLIF('x','x'),'0000')  
+       --返回 0 
+
+
+        SELECT HopeBe_n_0 = ISNULL(NULLIF('xx','xx'),'0000')  
+       --返回 00 
+
+ 
+        SELECT HopeBe_n_0 = ISNULL(NULLIF('xxx','xxx'),'0000')  
+       --返回 000
+

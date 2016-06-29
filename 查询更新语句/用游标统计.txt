@@ -1,0 +1,56 @@
+
+DECLARE @ClassID INT 
+DECLARE @Count INT 
+DECLARE @Date NVARCHAR(50)
+DECLARE @PARENTS NVARCHAR(MAX)
+DECLARE @Sql NVARCHAR(MAX)
+
+--DECLARE Sql_cursor CURSOR FOR 
+--	SELECT id FROM MS_T_CLASS 
+----打开游标
+--OPEN Sql_cursor	
+--FETCH NEXT FROM Sql_cursor INTO @ClassID
+--WHILE @@FETCH_STATUS = 0
+--BEGIN 
+--INSERT INTO tmp(classid, count, date) VALUES(@ClassID,0,'2009-11-30')
+--
+--
+--FETCH NEXT FROM Sql_cursor INTO @ClassID
+--END
+----关闭游标
+--CLOSE Sql_cursor
+----释放游标
+--DEALLOCATE Sql_cursor 
+
+
+DECLARE Sql_cursor CURSOR FOR 
+	SELECT CLASSID,CONVERT(nvarchar(30) , ADDTIME,110),count(id) FROM MS_T_ADVICE WHERE MONTH(ADDTIME)=11   GROUP BY CLASSID ,CONVERT(nvarchar(30) , ADDTIME,110) ORDER BY CONVERT(nvarchar(30) , ADDTIME,110)
+--打开游标
+OPEN Sql_cursor	
+FETCH NEXT FROM Sql_cursor INTO @ClassID,@Date,@Count
+WHILE @@FETCH_STATUS = 0
+BEGIN 
+
+
+SELECT @PARENTS=PARENTS FROM MS_T_CLASS WHERE id=@ClassID
+
+SET @PARENTS=SUBSTRING(@PARENTS,0,LEN(@PARENTS));
+set  @Sql='UPDATE tmp SET COUNT=COUNT+'+Cast(@Count as nvarchar)+' WHERE classid IN('+@PARENTS+','+CAST(@ClassID AS NVARCHAR)+') and Date='''+@Date+''''
+
+--PRINT (@Sql);
+EXEC(@Sql);
+
+
+FETCH NEXT FROM Sql_cursor INTO @ClassID,@Date,@Count
+END
+--关闭游标
+CLOSE Sql_cursor
+--释放游标
+DEALLOCATE Sql_cursor 
+
+SELECT * FROM tmp ORDER BY classid
+
+SELECT * FROM dbo.MS_T_CLASS WHERE id=4
+
+
+

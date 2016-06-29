@@ -1,0 +1,30 @@
+有时候我们经常为我们的sql语句执行效率低下发愁，反复优化后，可还是得不到提高
+
+        那么你就用这条语句找出你sql到底是在哪里慢了
+
+        示例： 
+
+        SET STATISTICS io ON
+        SET STATISTICS time ON
+        go
+         ---你要测试的sql语句
+         select top 100 * from TBL_Cot_RecStaticList
+        go
+        SET STATISTICS profile OFF
+        SET STATISTICS io OFF
+        SET STATISTICS time OFF 
+         显示信息： 
+
+        SQL Server 分析和编译时间: 
+
+        CPU 时间 = 0 毫秒，占用时间 = 59 毫秒。
+
+        (100 行受影响)         表 'TBL_Cot_RecStaticList'。扫描计数 1，逻辑读取 14 次，物理读取 2 次，预读 992 次，lob 逻辑读取 0 次，lob 物理读取 0 次，lob 预读 0 次。
+
+        SQL Server 执行时间:            CPU 时间 = 0 毫秒，占用时间 = 306 毫秒。         
+
+        SQL Server 分析和编译时间:            CPU 时间 = 0 毫秒，占用时间 = 1 毫秒。
+
+        SQL Server 执行时间:            CPU 时间 = 0 毫秒，占用时间 = 1 毫秒。
+
+        SQL Server 执行时间:            CPU 时间 = 0 毫秒，占用时间 = 1 毫秒。

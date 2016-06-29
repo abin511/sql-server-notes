@@ -1,0 +1,43 @@
+--公共表表达式（CTE）的主要目的是简化代码，它们与视图类似
+
+--单个CTE的例子
+with temp as 
+(
+	select * from Table_1 where id<100
+)
+select * from temp;
+
+--带列别名CTE的例子
+with temp(编号, 数据) as 
+(
+	select id, data from Table_1 where id<100
+)
+select * from temp;
+
+--多个CTE的例子
+with temp1 as 
+(
+	select * from Table_1
+), 
+temp2 as
+(
+	select * from Table_2
+)
+select * from temp1, temp2 where temp1.id = temp2.id;
+
+--带参数的CTE例子
+declare @fid int;
+set @fid = 1;
+with temp as
+(
+	select * from Table_1 where id = @fid
+)
+select * from temp;
+
+--CTE实现递归
+WITH cte AS (
+	SELECT * FROM REGIONINFO AS A(NOLOCK) WHERE A.id = 2
+	UNION ALL
+	SELECT A.* FROM REGIONINFO AS A(NOLOCK), cte AS B
+	WHERE A.pid = B.id
+)SELECT * FROM cte 

@@ -1,0 +1,88 @@
+if object_id('tempdb..#tab') is not null     
+drop table #tab  
+GO  
+create table #tab (  [id] [char](10),[age] [int],[rdate] [datetime])    
+insert into #tab(id,age,rdate) values('a' , 1 , '2006-01-01')  
+insert into #tab(id,age,rdate) values('a' , 2 , '2006-01-02')  
+insert into #tab(id,age,rdate) values('a' , 3 , '2006-01-03')  
+insert into #tab(id,age,rdate) values('a' , 4 , '2006-01-04')  
+insert into #tab(id,age,rdate) values('a' , 5 , '2006-01-05')  
+insert into #tab(id,age,rdate) values('a' , 6 , '2006-01-06')  
+insert into #tab(id,age,rdate) values('b' , 1 , '2006-02-01')  
+insert into #tab(id,age,rdate) values('b' , 2 , '2006-02-02')  
+insert into #tab(id,age,rdate) values('b' , 3 , '2006-02-03')  
+insert into #tab(id,age,rdate) values('b' , 4 , '2006-02-04')  
+insert into #tab(id,age,rdate) values('c' , 1 , '2006-03-01')  
+insert into #tab(id,age,rdate) values('c' , 2 , '2006-03-02')  
+insert into #tab(id,age,rdate) values('c' , 3 , '2006-03-03')  
+insert into #tab(id,age,rdate) values('d' , 1 , '2006-04-01')  
+insert into #tab(id,age,rdate) values('d' , 2 , '2006-04-02')  
+insert into #tab(id,age,rdate) values('e' , 1 , '2006-05-01') 
+/*   
+select *
+from ta a
+where not exists(select 1 from ta where typeid = a.typeid and id > a.id)
+*/
+/*
+select ID,TypeID,Name 
+From 
+(
+select ID,TypeID,Name ,
+rn=row_number() over(Partition by TypeID order by Time DESC)
+from 表
+) t
+where t.rn<=1
+*/
+--按时间rdate升序取前三条  
+select * from #tab t  where rdate in   
+(  select top 3 rdate from #tab where id=t.id order by rdate ) 
+   
+ --上面包含了总数不到3个的记录(即id为d,e的数据)，如果要取消它们，以升序为例(降序同理)  
+ select * from #tab m  
+ where rdate in   (    
+	select top 3 rdate from     (    
+		select * from #tab t    where id in       (      
+			select id from #tab group by id having(count(*)) >= 3      
+				)    
+			) n    where m.id = n.id order by rdate  
+	)  
+	  
+--在上面的例中我们发现rdate都是不相同的，如果相同怎么办？  
+--例如id=a，第三条，第四条rdate相同，都为2006-01-03。  
+--如果想把第三、四都取出来，使用上面的语句即可。
+--如果只取一条(只取第三不取第四)则要使用临时表了。  
+if object_id('tempdb..#tab') is not null     
+drop table #tab  
+GO  
+if object_id('tempdb..#temp') is not null     
+drop table #temp  
+GO  
+create table #tab (  [id] [char](10),[age] [int],[rdate] [datetime])    
+insert into #tab(id,age,rdate) values('a' , 1 , '2006-01-01')  
+insert into #tab(id,age,rdate) values('a' , 2 , '2006-01-02')  
+insert into #tab(id,age,rdate) values('a' , 3 , '2006-01-03')  
+insert into #tab(id,age,rdate) values('a' , 4 , '2006-01-03')  
+insert into #tab(id,age,rdate) values('a' , 5 , '2006-01-05')  
+insert into #tab(id,age,rdate) values('a' , 6 , '2006-01-06')  
+insert into #tab(id,age,rdate) values('b' , 1 , '2006-02-01')  
+insert into #tab(id,age,rdate) values('b' , 2 , '2006-02-02')  
+insert into #tab(id,age,rdate) values('b' , 3 , '2006-02-03')  
+insert into #tab(id,age,rdate) values('b' , 4 , '2006-02-04')  
+insert into #tab(id,age,rdate) values('c' , 1 , '2006-03-01')  
+insert into #tab(id,age,rdate) values('c' , 2 , '2006-03-02')  
+insert into #tab(id,age,rdate) values('c' , 3 , '2006-03-03')  
+insert into #tab(id,age,rdate) values('d' , 1 , '2006-04-01')  
+insert into #tab(id,age,rdate) values('d' , 2 , '2006-04-02')  
+insert into #tab(id,age,rdate) values('e' , 1 , '2006-05-01')    
+--按时间rdate升序取前三条(其他方法同上)  
+select id1=identity(int,1,1),* into #temp 
+from #tab order by id , rdate /*(降序用rdate desc)*/  
+select * from #temp t  
+where id1 in   (  select top 3 id1 from #temp where id=t.id order by id1  ) 
+
+
+
+/**************************************/
+SELECT * FROM (
+select RANK() over(partition by id order by RDATE ) as cn,* from #tab
+) T WHERE cn < 3

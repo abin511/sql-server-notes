@@ -1,0 +1,2 @@
+select autoid =(select count(*) from test where id <= a.id),* 
+	from test a

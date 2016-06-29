@@ -1,0 +1,40 @@
+下面给出一个简单的例子，假设有一个表Contacts.txt类似下面： 
+姓名   单位   联系日期   
+王海   上海有机化学研究所   2002-1-1   
+罗炙   数字化机床研究院   2004-1-1     
+
+
+导入   Access   应该类似下面表格： 
+姓名   单位   联系日期   
+王海   上海有机化学研究所   2002-1-1   
+罗炙   数字化机床研究院   2004-1-1   
+
+
+那么   Schema.ini   则是类似下面的INI文件： 
+[Contacts.txt] 
+ColNameHeader=True 
+format=Delimited( "   ") 
+MaxScanRows=0 
+CharacterSet=ANSI 
+Col1= "姓名 "   Char   Width   10 
+Col2= "单位 "   Char   Width   9 
+Col3= "联系日期 "   Date   Width   8   
+
+
+注释如下： 
+[Contacts.txt]   ///文本文件名 
+ColNameHeader=True   ///带有表头 
+format=Delimited(   )   ///空格作为分隔符，如果是分号，请用format=Delimited(;)   来解决 
+MaxScanRows=0   ///扫描整个文件 
+CharacterSet=ANSI   ///ANSI   字符集 
+Col1= "姓名 "   Char   Width   10   ///字段1 
+Col2= "单位 "   Char   Width   9   ///字段2 
+Col3= "联系日期 "   Date   Width   8   ///字段3 
+///如果有更多字段可   Col4   ....   ColN     
+
+
+注意，Schema.ini   必须和需要导入的文本文件在同一目录。 
+
+此后，我们就可以利用下面的语句来导入数据了： 
+
+CurrentProject.Connection.Execute   "SELECT   *   INTO   NewContact   FROM   [Text;FMT=Delimited;HDR=Yes;DATABASE=C:\;].[Contacts#txt]; "   

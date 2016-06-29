@@ -1,0 +1,30 @@
+create   table   a1111   (id   int,   a   as   (case   when   id>5   then   1   else   0   end))   
+  select   *   from   a1111   
+  insert   into   a1111   values(3)   
+  insert   into   allll   values(6)   
+  select   *   from   a1111
+
+---------------------------------------------------------------------------
+create   table   a1111   (DOB datetime,   age   as   (YEAR(GETDATE())-year(DOB)))   
+insert into a1111(DOB) values('2000-08-08')
+insert into a1111(DOB) values('1900-08-08')
+insert into a1111(DOB) values('1988-08-08')
+select * from a1111
+
+------------------------------------------------------------------------------
+create   table   a1111   (
+beginstr char(6) , 
+endstr char(6) ,
+begintime as (convert(varchar(100),GETDATE(),23) + ' ' + right(beginstr,5) + ':000' ) ,
+endtime as (
+	case when cast(substring(endstr,2,2) as int) <= cast(substring(beginstr,2,2) as int) 
+	then  convert(varchar(100),dateadd(day,1,GETDATE()),23) + ' ' + right(endstr,5) + ':000'  
+	else  convert(varchar(100),GETDATE(),23) + ' ' + right(endstr,5) + ':000'   
+	end)
+)  
+
+insert into a1111(beginstr,endstr) values('=09:00','=18:00')
+insert into a1111(beginstr,endstr) values('=16:30','>01:30')
+insert into a1111(beginstr,endstr) values('=12:30','=21:00')
+insert into a1111(beginstr,endstr) values('=17:30','<17:00')
+select * from a1111

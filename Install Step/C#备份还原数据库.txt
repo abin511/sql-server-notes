@@ -1,0 +1,157 @@
+引用别人的方法   
+  ///   
+  ///备份方法   
+  ///   
+  SqlConnection   conn   =   new   SqlConnection("Server=.;Database=master;User   ID=sa;Password=sa;");   
+    
+  SqlCommand   cmdBK   =   new   SqlCommand();   
+  cmdBK.CommandType   =   CommandType.Text;   
+  cmdBK.Connection   =   conn;   
+  cmdBK.CommandText   =   @"backup   database   test   to   disk='C:\ba'   with   init";   
+    
+  try   
+  {   
+  conn.Open();   
+  cmdBK.ExecuteNonQuery();   
+  MessageBox.Show("Backup   successed.");   
+  }   
+  catch(Exception   ex)   
+  {   
+  MessageBox.Show(ex.Message);   
+  }   
+  finally   
+  {   
+  conn.Close();   
+  conn.Dispose();   
+  }   
+    
+    
+  ///   
+  ///还原方法   
+  ///   
+  SqlConnection   conn   =   new   SqlConnection("Server=.;Database=master;User   ID=sa;Password=sa;Trusted_Connection=False");   
+  conn.Open();   
+    
+  //KILL   DataBase   Process   
+  SqlCommand   cmd   =   new   SqlCommand("SELECT   spid   FROM   sysprocesses   ,sysdatabases   WHERE   sysprocesses.dbid=sysdatabases.dbid   AND   sysdatabases.Name='test'",   conn);   
+  SqlDataReader   dr;   
+  dr   =   cmd.ExecuteReader();   
+  ArrayList   list   =   new   ArrayList();   
+  while(dr.Read())   
+  {   
+  list.Add(dr.GetInt16(0));   
+  }   
+  dr.Close();   
+  for(int   i   =   0;   i   <   list.Count;   i++)   
+  {   
+  cmd   =   new   SqlCommand(string.Format("KILL   {0}",   list),   conn);   
+  cmd.ExecuteNonQuery();   
+  }   
+    
+  SqlCommand   cmdRT   =   new   SqlCommand();   
+  cmdRT.CommandType   =   CommandType.Text;   
+  cmdRT.Connection   =   conn;   
+  cmdRT.CommandText   =   @"restore   database   test   from   disk='C:\ba'";   
+    
+  try   
+  {   
+  cmdRT.ExecuteNonQuery();   
+  MessageBox.Show("Restore   successed.");   
+  }   
+  catch(Exception   ex)   
+  {   
+  MessageBox.Show(ex.Message);   
+  }   
+  finally   
+  {   
+  conn.Close();   
+  }   
+    
+    
+    
+    
+    
+  方法二（使用SQLDMO）：   
+    
+  ///   
+  ///备份方法   
+  ///   
+  SQLDMO.Backup   backup   =   new   SQLDMO.BackupClass();   
+  SQLDMO.SQLServer   server   =   new   SQLDMO.SQLServerClass();   
+  //显示进度条   
+  SQLDMO.BackupSink_PercentCompleteEventHandler   progress   =   new   SQLDMO.BackupSink_PercentCompleteEventHandler(Step);   
+  backup.PercentComplete   +=   progress;   
+    
+  try   
+  {   
+  server.LoginSecure   =   false;   
+  server.Connect(".",   "sa",   "sa");   
+  backup.Action   =   SQLDMO.SQLDMO_BACKUP_TYPE.SQLDMOBackup_Database;   
+  backup.Database   =   "test";   
+  backup.Files   =   @"D:\test\myProg\backupTest";   
+  backup.BackupSetName   =   "test";   
+  backup.BackupSetDescription   =   "Backup   the   database   of   test";   
+  backup.Initialize   =   true;   
+  backup.SQLBackup(server);   
+  MessageBox.Show("Backup   successed.");   
+  }   
+  catch(Exception   ex)   
+  {   
+  MessageBox.Show(ex.Message);   
+  }   
+  finally   
+  {   
+  server.DisConnect();   
+  }   
+  this.pbDB.Value   =   0;   
+    
+    
+  ///   
+  ///还原方法   
+  ///   
+  SQLDMO.Restore   restore   =   new   SQLDMO.RestoreClass();   
+  SQLDMO.SQLServer   server   =   new   SQLDMO.SQLServerClass();   
+  //显示进度条   
+  SQLDMO.RestoreSink_PercentCompleteEventHandler   progress   =   new   SQLDMO.RestoreSink_PercentCompleteEventHandler(Step);   
+  restore.PercentComplete   +=   progress;   
+    
+  //KILL   DataBase   Process   
+  SqlConnection   conn   =   new   SqlConnection("Server=.;Database=master;User   ID=sa;Password=sa;Trusted_Connection=False");   
+  conn.Open();   
+  SqlCommand   cmd   =   new   SqlCommand("SELECT   spid   FROM   sysprocesses   ,sysdatabases   WHERE   sysprocesses.dbid=sysdatabases.dbid   AND   sysdatabases.Name='test'",   conn);   
+  SqlDataReader   dr;   
+  dr   =   cmd.ExecuteReader();   
+  ArrayList   list   =   new   ArrayList();   
+  while(dr.Read())   
+  {   
+  list.Add(dr.GetInt16(0));   
+  }   
+  dr.Close();   
+  for(int   i   =   0;   i   <   list.Count;   i++)   
+  {   
+  cmd   =   new   SqlCommand(string.Format("KILL   {0}",   list),   conn);   
+  cmd.ExecuteNonQuery();   
+  }   
+  conn.Close();   
+    
+  try   
+  {   
+  server.LoginSecure   =   false;   
+  server.Connect(".",   "sa",   "sa");   
+  restore.Action   =   SQLDMO.SQLDMO_RESTORE_TYPE.SQLDMORestore_Database;   
+  restore.Database   =   "test";   
+  restore.Files   =   @"D:\test\myProg\backupTest";   
+  restore.FileNumber   =   1;   
+  restore.ReplaceDatabase   =   true;   
+  restore.SQLRestore(server);   
+  MessageBox.Show("Restore   successed.");   
+  }   
+  catch(Exception   ex)   
+  {   
+  MessageBox.Show(ex.Message);   
+  }   
+  finally   
+  {   
+  server.DisConnect();   
+  }   
+  this.pbDB.Value   =   0;

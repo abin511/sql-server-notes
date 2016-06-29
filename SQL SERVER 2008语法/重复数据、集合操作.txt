@@ -1,0 +1,20 @@
+--EXCEPT和INTERSECT是新的子句，它们同UNION一样，将多个不同的查询结果组合为单一的结果集
+--EXCEPT差集、INTERSECT交集、UNION并集。注意它们都会去重复。
+
+--EXCEPT 从左查询中返回右查询没有找到的所有非重复值（左表哪些数据在右表中不存在，返回左表数据
+select data,goods from Table_1
+except
+select data,goods from Table_2
+--相当于 not exists
+select distinct data,goods from Table_1 as x
+where not exists (select 1 from Table_2 where thedata=x.data and thegood=x.goods)
+
+
+
+--INTERSECT 返回左右两边的两个查询都返回的所有非重复值（返回两个表共同存在的数据）
+select data,goods from Table_1
+intersect
+select thedata,thegood from Table_2
+--相当于 exists
+select distinct data,goods from Table_1 as x
+where exists (select 1 from Table_2 where thedata=x.data and thegood=x.goods)

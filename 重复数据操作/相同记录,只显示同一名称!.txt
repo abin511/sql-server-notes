@@ -1,0 +1,41 @@
+------------------------------------
+原始这样
+--------------------------------------
+
+  1001            AAA       BBB   
+  1001            CCC       DDD   
+  1001            EEE       FFF   
+  1023            DDD       DDD   
+  1023            DDD       SWW   
+  1023            III       III   
+  1929            SSS       SSS   
+  1929            DDD       WWW   
+-------------------------------------
+转成这样
+-------------------------------------
+
+  1001            AAA       BBB   
+                  CCC       DDD   
+                  EEE       FFF   
+  1023            DDD       DDD   
+                  DDD       SWW   
+                  III       III   
+  1929            SSS       SSS   
+                  DDD       WWW   
+--------------------------------------------------------
+
+/*创建一张测试表*/
+create table tb(a varchar(10),b varchar(5),c varchar(5)) 
+insert tb select 1001,'AAA','BBB'  
+insert tb select 1001,'CCC','DDD'  
+insert tb select 1001,'EEE','FFF'  
+insert tb select 1023,'DDD','DDD'  
+insert tb select 1023,'DDD','SWW'  
+insert tb select 1023,'III','III'  
+insert tb select 1929,'SSS','SSS'  
+insert tb select 1929,'DDD','WWW'  
+/*查询原始数据*/
+select * from tb
+/*查询排列后的数据*/
+;with test as(select ROW_NUMBER() over(order by a) as id,* from tb)
+select a=case when  exists(select 1 from test where a=t.a and id<t.id) then '' else a end ,b,c from test t

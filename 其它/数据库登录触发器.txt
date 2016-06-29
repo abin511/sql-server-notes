@@ -1,0 +1,8 @@
+今天刚刚发现一个触发器.跟表无关的.
+> CREATE TRIGGER LogonTimeStamp
+> ON ALL SERVER FOR LOGON
+> AS
+> BEGIN
+> INSERT INTO LogonAudit SELECT GETDATE(), @@SPID, SYSTEM_USER,USER
+> END;
+数据库登录触发器. 

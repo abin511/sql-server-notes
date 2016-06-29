@@ -1,0 +1,654 @@
+/*  
+declare @a int  
+declare @b int  
+exec public_page 'DataManage.dbo.Employee_Info AS A JOIN DataManage.dbo.Role_Info AS B ON A.Emp_Role = B.PKID',
+'A.Emp_ID,A.Emp_Name,A.Emp_Department,A.Emp_State,B.Roler_Name',' AND (Emp_ID LIKE ''%0%'' OR Emp_Name LIKE  ''%0%'') ',
+'A.PKID','A.OperationTime',4,2,@a,@b  
+*/  
+-- 获取指定页的数据       
+alter procedure  public_page         
+@tableName   nvarchar(1000)   ,                  --表名称       
+@strGetFields   nvarchar(1000),                 --需要查询的列                   
+@strWhere     nvarchar(1000)   ='',             --查询条件   (注意:   不要加   where)  
+@FieldsKey   nvarchar(100),                     --主键,（为表的主键）      
+@OrderField   nvarchar(100)=   '',				--排序 不要加 ORDER BY 
+@PageCurrent   int,                               --页面索引,从datagrid中获取       
+@PageSize     int,                              --页面显示数量，从datagrid中获取      
+@PageCount   int   OUT,                         --返回分页后页数    
+@RecordCount   int   OUT                        --返回记录总数          
+  as       
+  declare   @countSelect   nvarchar(2000)        
+  --设置统计查询语句       
+  if   len(@strWhere)   =0         
+  --如果没有查询条件       
+          begin       
+                  set   @countSelect=N'select @CountRecord = count(*) from '+@tableName       
+          end       
+  else       
+  --否则       
+          begin       
+                  set   @countSelect=N'select @CountRecord = count(*) from '+@tableName+' where 1 > 0 '+@strWhere       
+          end       
+  --执行并返回总数       
+  exec   sp_executesql   @countSelect,N'@CountRecord   int   output',@RecordCount   output       
+  set   @PageCount   =   CEILING(@RecordCount   *   1.0   /   @PageSize)     
+         
+  set   nocount   on        
+  declare   @SQLSTR   nvarchar(3000)       
+  --实际总共的页码小于当前页码   或者   最大页码       
+  if   @PageCount>=0       
+          --如果分页后页数大于0       
+          begin       
+                  if   @PageCount<=@PageCurrent   and     @PageCount>0       --如果实际总共的页数小于datagrid索引的页数       
+                          --or   @PageCount=1       
+                          begin       
+                                  --设置为最后一页       
+        set   @PageCurrent=@PageCount-1       
+                          end       
+                  else   if   @PageCount<=@PageCurrent   and     @PageCount=0       
+                          begin       
+                                  set   @PageCurrent=0;       
+                          end       
+  else   if   @PageCurrent = 1 --如果为第一页       
+  set   @PageCurrent = 0       
+  else         
+  set   @PageCurrent  =  @PageCurrent - 1       
+          end       
+        
+  --设置排序       
+  if   len(@OrderField)   >   0       
+ set  @OrderField  =  N' ORDER BY ' + @OrderField       
+  else       
+    set  @OrderField  =  N' ORDER BY ' + @FieldsKey + ' asc '   
+ 
+  --如果用普通的sql而不使用存储过程调用     
+  IF   @PageCurrent = 0 OR @PageCount <= 1     --如果为第一页     
+          begin     
+                  if len(@strWhere) = 0      
+                      SET   @SQLSTR = N'SELECT TOP '+STR(@PageSize)+@strGetFields+' FROM ' + @tableName + @OrderField       
+                  else        
+                      SET   @SQLSTR = N'SELECT TOP '+STR(@PageSize)+@strGetFields+' FROM ' + @tableName + ' where 1 > 0'+ @strWhere + @OrderField   
+          end     
+  ELSE   IF  @PageCurrent = @PageCount - 1   --如果为最后一页                             
+          begin     
+                  if len(@strWhere)  = 0     
+                      SET   @SQLSTR  = N' SELECT '+@strGetFields+' FROM '+@tableName+' WHERE '+@FieldsKey+' NOT IN  ( SELECT TOP  '+STR(@PageSize * @PageCurrent)+@FieldsKey+' FROM  ' + @tableName + @OrderField+' ) ' + @OrderField 
+				else      
+                      SET   @SQLSTR  = N' SELECT '+@strGetFields+' FROM '+@tableName+' WHERE '+@FieldsKey+' NOT IN  ( SELECT TOP  '+STR(@PageSize * @PageCurrent)+@FieldsKey+'  FROM  ' + @tableName + ' WHERE 1 > 0 '+ @strWhere + @OrderField+'   ) and  1 > 0 '+@strWhere+@OrderField   
+          end     
+  ELSE                                                                                                                             --否则执行         
+          begin     
+                  if len(@strWhere)   =0     
+                      SET   @SQLSTR   =N' SELECT TOP  '+STR( @PageSize)+@strGetFields+' FROM '+@tableName+' WHERE '+@FieldsKey+'  not in (SELECT TOP '+STR(@PageSize *  @PageCurrent )+@FieldsKey+' FROM '+@tableName+@OrderField+')' + @OrderField    
+				  else     
+                      SET   @SQLSTR   =N' SELECT TOP '+STR(@PageSize)+@strGetFields+' FROM '+@tableName+' WHERE '+@FieldsKey+'  not in (SELECT  TOP '+STR(@PageSize * @PageCurrent )+@FieldsKey+'  FROM '+@tableName+' WHERE 1 > 0 '+@strWhere+@OrderField+' )and  1 > 0 '+@strWhere+@OrderField   
+          end     
+  print   @sqlstr     
+  EXEC   (@SQLSTR)     
+  set   nocount   off 
+
+/*****************************************************/
+/*  
+针对分组数据，其中条件必须加where 排序必须加order by desc ，分组必须加group by  
+declare @a int   
+declare @b int  
+exec public_page_Group 'HongTaoK_DB_Cti.dbo.SheetRecord',  
+'CONVERT(VARCHAR(10),BegTime,120) AS BegTime,AgentID,SUM(CASE Direction WHEN 0 THEN 1 else 0 end) AS callout,dbo.StatDate(SUM(CASE Direction WHEN 0 THEN Duration ELSE 0 END)) AS calloutTime,SUM(CASE Direction WHEN 1 THEN 1 else 0 end) AS callIn,dbo.StatDate(SUM(CASE Direction WHEN 1 THEN Duration ELSE 0 END)) AS callInTime,SUM(CASE Direction WHEN 2 THEN 1 else 0 end) AS callTransfer,dbo.StatDate(SUM(CASE Direction WHEN 2 THEN Duration ELSE 0 END)) AS callTransferTime,COUNT(RecordID) AS TotalStat,dbo.StatDate(SUM(Duration)) AS TotalDuration',
+'AND AgentID NOT IN(''-1'')','GROUP BY CONVERT(VARCHAR(10),BegTime,120),AgentID','order by BegTime',1,10,@a,@b
+*/  
+alter PROCEDURE public_page_Group     
+(    
+    @tableName VARCHAR(1000),        --表名    
+    @fieldName VARCHAR(4000),        --查询字段    
+    @strWhere VARCHAR(2000),       --WHERE条件,必须加where    
+	@groupField VARCHAR(1000),		--分组的字段    
+    @orderField VARCHAR(200),        --排序条件
+    @PageCurrent INT,               --当前页     
+    @pageSize INT,                  --每页记录数 
+	@PageCount INT OUTPUT,          --输出总页数
+    @RecordNum INT OUTPUT          --输出记录总数 
+)    
+AS    
+ DECLARE @beginRow INT    
+ DECLARE @endRow INT    
+ DECLARE @tempLimit VARCHAR(200)    
+ DECLARE @tempCount NVARCHAR(1000)   
+ DECLARE @tempPage NVARCHAR(1000) 
+ DECLARE @tempMain VARCHAR(1000)    
+    
+ SET NOCOUNT ON    
+ SET @beginRow = (@PageCurrent - 1) * @pageSize    + 1    
+ SET @endRow = @PageCurrent * @pageSize    
+ SET @tempLimit =' WHERE rows BETWEEN ' + str(@beginRow) +' AND '+ str(@endRow)    
+     
+ --输出参数为总记录数    
+ SET @tempCount = ' SELECT @RecordNum = COUNT(*) FROM (SELECT '+@fieldName+' FROM '+@tableName+' WHERE 1>0 '+@strWhere+' '+@groupField+') AS my_temp'    
+ EXECUTE sp_executesql @tempCount,N'@RecordNum INT OUTPUT',@RecordNum OUTPUT  
+ --执行SQL语句，计算总页数，并将其放入@intPageCount变量中
+set @pageCount=(@RecordNum+@pageSize-1)/@pageSize 
+-- --主查询返回结果集    
+ SET @tempMain = 'SELECT * FROM (select ROW_NUMBER() OVER ('+@orderField+') AS rows,*     
+    from (SELECT '+@fieldName+' FROM '+@tableName+' WHERE 1>0 '+@strWhere+' '+@groupField+') AS TEMP1) AS TEMP2' + @tempLimit    
+ EXECUTE (@tempMain)    
+ SET NOCOUNT OFF 
+
+/***************************************************/
+/*查询操作*/
+ALTER PROCEDURE Select_Operation
+@tableName   nvarchar(1000)  ,				--需要查询的表名称   
+@strGetFields   nvarchar(1000) ='*',		--需要查询的列  
+@strWhere     nvarchar(1000)  =''			--查询条件
+as
+DECLARE @SQL nvarchar(2000) 
+	SET @SQL = N'SELECT '+@strGetFields+' FROM '+@tableName+' WHERE 1 > 0 ' + @strWhere
+exec sp_executesql @SQL
+/***************************************************/
+/*查询操作*/
+CREATE PROCEDURE Select_Operation_Scalar
+@tableName   nvarchar(1000)  ,				--需要查询的表名称   
+@strGetFields   nvarchar(1000) ='*',		--需要查询的列  
+@strWhere     nvarchar(1000)  =''			--查询条件
+as
+DECLARE @SQL nvarchar(2000) 
+	SET @SQL = N'SELECT COUNT('+@strGetFields+') FROM '+@tableName+' WHERE 1 > 0 ' + @strWhere
+exec sp_executesql @SQL
+
+/*******************************************************/
+/*修改操作*/
+ALTER PROCEDURE MS_P_UPDATE_OPERATION
+@TABLENAME NVARCHAR(50),                  --需要修改的表名称  
+@STRVALUE NVARCHAR(2000) ='',			 --修改操作
+@STRWHERE NVARCHAR(1000) ='',			 --修改条件
+@RETURN INT OUTPUT
+AS
+DECLARE @SQL nvarchar(4000)
+    SET XACT_ABORT ON
+    SET NOCOUNT ON
+	BEGIN TRANSACTION TRAN_STAR
+	BEGIN TRY --捕捉错误
+		SET @SQL = N'SELECT @COUNTS = COUNT(1) FROM ' + @TABLENAME + ' WITH(NOLOCK) WHERE 1 > 0 ' + @STRWHERE
+		EXECUTE sp_executesql @SQL,N'@COUNTS INT OUT',@RETURN OUT
+		IF @RETURN = 0
+			BEGIN
+	 			SET @RETURN = -1
+	 			RETURN
+			END
+		ELSE
+			BEGIN
+				SET @SQL = N'UPDATE '+@TABLENAME+' SET '+ @STRVALUE + ' WHERE 1 > 0 ' + @STRWHERE
+				EXECUTE sp_executesql @SQL
+				SET @RETURN = @@ROWCOUNT
+			END
+		PRINT '@SQL:'+@SQL
+    END TRY
+	BEGIN CATCH
+		SET @RETURN = -100
+		ROLLBACK TRAN TRAN_STAR --回滚
+		SET XACT_ABORT OFF
+		SET NOCOUNT OFF
+		RETURN
+	END CATCH
+	COMMIT TRAN TRAN_STAR --提交
+		SET XACT_ABORT OFF
+		SET NOCOUNT OFF
+	RETURN
+/*******************************************************/
+/*删除操作*/
+alter PROCEDURE Del_Operation 
+@tableName   nvarchar(100)   ,                  --需要删除的表名称  
+@strWhere     nvarchar(1000) =''				--删除条件
+as
+DECLARE @SQL nvarchar(2000) 
+	SET @SQL = N'DELETE FROM '+ @tableName + ' WHERE 1 > 0 ' + @strWhere
+exec sp_executesql @SQL
+/*******************************************************/
+/*插入操作*/
+alter PROCEDURE Insert_Operation 
+@tableName   nvarchar(100)   ,                  --需要插入的表名称
+@strGetFields   nvarchar(1000),                 --需要插入的列     
+@strValue     nvarchar(1000) =''				--插入的值
+as
+DECLARE @SQL nvarchar(2000) 
+	SET @SQL = N'INSERT INTO '+ @tableName + '('+@strGetFields+') VALUES(' + @strValue+')'
+exec sp_executesql @SQL
+
+/*******************************************************/
+/*        
+1）接受数据导入的表已经存在。          
+     insert into 表 select * from  OPENROWSET('MICROSOFT.JET.OLEDB.4.0'  ,        
+     'Excel 5.0;HDR=YES;DATABASE=c:\test.xls',sheet1$);          
+        
+2）导入数据并生成表。          
+     select * into 表 from  OPENROWSET('MICROSOFT.JET.OLEDB.4.0'  ,        
+     'Excel 5.0;HDR=YES;DATABASE=c:\test.xls',sheet1$);         
+        
+        
+3) 导入Excel中指定的列到数据库表中指定的列。        
+    INSERT INTO 表(a1,a2,a3) SELECT a1,a2,a3 FROM OPENROWSET('MICROSOFT.JET.OLEDB.4.0' ,        
+           'Excel 5.0;HDR=YES;DATABASE=c:\test.xls',sheet1$);        
+        
+需要注意的地方。        
+1）外围应用配置器的设置。        
+    从“功能外围应用配置器”中选择“启动 OPENROWSET 和 OPENDATASOURCE 支持”选项。        
+2）关闭Excel表。        
+     如果在导入时要导入的Excel表格处于打开状态，会提示：        
+   “无法初始化链接服务器 "(null)" 的 OLE DB 访问接口 "microsoft.jet.oledb.4.0" 的数据源对象。”        
+3）导入数据时，Excel的首行会作为表头，若导入到已存在的数据库表，则忽略首行。        
+        
+*/        
+/*判断数据库是否存在某张表        
+exec Excel_Add '项目3','下周工作计划','PRO_2009043090637项目3',      
+'C:\Documents and Settings\jianfeng\桌面\技术部周工作总结与计划表.xls',1,0,'测试的','李湘'      
+*/      
+ALTER procedure  Excel_Add           
+@New_tbName nvarchar(200),        
+@Old_tbName nvarchar(200),      
+@Tab_Name  nvarchar(300),       
+@Old_tbPath nvarchar(1000),        
+@ProType int,        
+@ProState int,        
+@Pro_Remark nvarchar(100),        
+@OperationName nvarchar(50)      
+as         
+DECLARE @_TabName Nvarchar(300)      
+DECLARE @Sql Nvarchar(4000),@_exists int   --注意数据类型       
+SET  @sql = 'SET @_exists=case when EXISTS( SELECT 1 FROM  OPENROWSET(''MICROSOFT.JET.OLEDB.4.0'',''Excel 5.0;HDR=YES;DATABASE='+@Old_tbPath+''','+@Old_tbName+'$) ) then 1 else 0 end '        
+--判断Excel数据源是否存在      
+execute sp_executesql @Sql,N'@_exists INT out',@_exists out      
+--开始一个事务                 
+BEGIN TRANSACTION excelInfo      
+IF @_exists = 1--当前数据源存在      
+   BEGIN       
+  --IF EXISTS(SELECT 1 FROM sysobjects WHERE TYPE='U' AND NAME = @New_tbName)--判断表存在，将当前数据插入到原表       
+  --如果导入数据成功的话，添加或者修改记录信息      
+  IF EXISTS(SELECT PKID FROM DataManage.DBO.Project_Info WHERE Pro_Name = @New_tbName)  --记录存在,修改日志，追加数据      
+    BEGIN     
+   UPDATE DataManage.DBO.Project_Info       
+   SET Pro_Type = @ProType,Pro_State = @ProState, Pro_Remark = @Pro_Remark,Pro_UpdateName=@OperationName,      
+    Pro_UpdateTime=GETDATE(),Pro_UpdateCount=Pro_UpdateCount+1 WHERE Pro_Name = @New_tbName      
+      SET @_TabName = (SELECT Tab_Name FROM DataManage.DBO.Project_Info  WHERE Pro_Name = @New_tbName)      
+   SET @Sql = 'INSERT INTO '+@_TabName+' SELECT NULL,0,NULL,NULL,0,NULL,NULL,* FROM OPENROWSET(''MICROSOFT.JET.OLEDB.4.0'' ,''Excel 5.0;HDR=YES;DATABASE='+@Old_tbPath+''','+@Old_tbName+'$)'      
+    END      
+  ELSE --无效,创建表    
+    BEGIN      
+    INSERT INTO DataManage.DBO.Project_Info(Pro_Name,Pro_Type,Pro_State,Pro_Remark,Pro_OperationName,Pro_OperationTime,Pro_UpdateName,Pro_UpdateTime,Pro_UpdateCount,Tab_Name)        
+    VALUES(@New_tbName,@ProType,@ProState,@Pro_Remark,@OperationName,GETDATE(),@OperationName,GETDATE(),0,@Tab_Name)  
+	--插入的表字段包括（自增，活动ID，活动分配状态，数据分配类型[个人、部门]，PKID，活动分配状态，分配时间，分配人员）     
+    SET @Sql = 'SELECT IDENTITY(INT,1,1) AS PKID,CONVERT(INT,NULL) AS DataInfo_PKID,0 AS Allot_DataInfo_State,
+				CONVERT(INT,NULL) AS AgentType,CONVERT(INT,NULL) AS Agent_PKID,0 AS Allot_Agent_State,
+				CONVERT(DATETIME,NULL) AS Allot_Date,CONVERT(NVARCHAR(50),NULL) AS Allot_ManID,* 
+				INTO '+@Tab_Name+' FROM  OPENROWSET(''MICROSOFT.JET.OLEDB.4.0'',''Excel 5.0;HDR=YES;DATABASE='+@Old_tbPath+''','+@Old_tbName+'$)
+				ALTER TABLE '+@Tab_Name+' ADD PRIMARY KEY(PKID) '       
+    END      
+  execute sp_executesql @Sql       
+  --事务判断IF @@error<>0 SET @_error = 1      
+  IF @@error<>0       
+   ROLLBACK TRANSACTION excelInfo --回滚事务    
+  ELSE      
+   COMMIT TRANSACTION excelInfo--结束一个事务      
+   END
+/********************删除导入的excel数据，并且删除导入记录***************************************/
+/*删除Excel导入记录，并删除表 返回int
+exec Excel_Del '项目1'
+*/
+ALTER procedure  Excel_Del     
+@tbName nvarchar(200)
+as  
+DECLARE   @_error INT
+SET   @_error = 0     
+begin   
+	--开始一个事务           
+	BEGIN TRANSACTION excelInfo
+		--删除数据库中的表
+		DECLARE @SqlDel NVARCHAR(1000)
+		SET @SqlDel = ' DROP TABLE '+@tbName+''
+		execute sp_executesql @SqlDel
+		IF @@error<>0 SET @_error = 1
+
+		--删除导入记录
+		SET @SqlDel = ' DELETE FROM Project_Info WHERE Pro_Name ='''+@tbName+''' '
+		execute sp_executesql @SqlDel
+		IF @@error<>0 SET @_error = 1
+		
+		--事务判断
+		IF @_error > 0 
+			ROLLBACK TRANSACTION excelInfo --回滚事务
+		ELSE
+			COMMIT TRANSACTION excelInfo--结束一个事务
+end  
+
+/***************************************************/
+ --查找当前节点下的所有子节点   (函数)  
+  ALTER Function GetChild(@Parent Int)     
+    Returns @ChildTable Table(Parent INT,Child INT,D_Num NVARCHAR(50),D_Name NVARCHAR(100))     
+  As     
+  Begin     
+  Insert @ChildTable Select PKID,Department_ParentID,Department_Num,Department_Name
+  From DataManage.DBO.Department_Info Where PKID = @Parent     
+  While   @@ROWCOUNT>0     
+	Insert @ChildTable Select B.PKID,B.Department_ParentID,B.Department_Num,B.Department_Name 
+	From @ChildTable A Inner Join DataManage.DBO.Department_Info B  On A.Parent = B.Department_ParentID 
+	Where B.Department_ParentID Not In (Select Distinct Child From @ChildTable)     
+  Return     
+  End 
+/**********************查询活动中对应的数据源的数据量**************************/
+-- EXEC Select_DataCount
+/*查询活动中对应的数据源的数据量*/
+CREATE PROCEDURE Select_DataCount
+as
+SELECT PKID,Pro_Name,Tab_Name,0 AS AllCount INTO #temp FROM DataManage.DBO.Project_Info
+DECLARE @tab_name NVARCHAR(100),@sql NVARCHAR(1000)
+DECLARE cur CURSOR FOR SELECT tab_name FROM #temp
+OPEN cur
+FETCH next FROM cur INTO @tab_name
+WHILE(@@fetch_status = 0)
+BEGIN
+	SELECT @sql = 'UPDATE #temp SET AllCount =(SELECT COUNT(1) FROM ' + @tab_name + ') WHERE Tab_Name=''' + @tab_name +''''
+	EXEC(@sql)
+	FETCH next FROM cur into @tab_name
+END
+CLOSE cur
+DEALLOCATE cur
+SELECT * FROM #temp
+DROP TABLE #temp
+/**********************查询活动中对应的数据源的数据量**************************/
+--根据项目ID，查询出当前项目的数据分配情况
+--exec Select_DataCountBy_Tab 133
+Alter PROCEDURE Select_DataCountBy_Tab  
+@PKID INT  
+AS  
+SET NOCOUNT ON  
+DECLARE @SQL NVARCHAR(1000),@T NVARCHAR(500)  
+SET @T =(SELECT Tab_Name FROM DataManage.DBO.Project_Info WHERE PKID=@PKID) 
+SET @SQL = ' SELECT COUNT(1) AS Allot_Total,COUNT(CASE Allot_DataInfo_State WHEN 1 THEN 1 END) AS Allot_Yes,
+			COUNT(CASE Allot_DataInfo_State WHEN 0 THEN 1 END) AS Allot_No,COUNT(DISTINCT DataInfo_PKID) AS ProCount FROM '+@T  
+EXEC (@SQL)  
+SET NOCOUNT OFF
+/***********************选择项目的数据分配给活动********************************/
+/*选择项目的数据分配给活动
+exec Allot_Data 1,134,2
+*/
+ALTER PROCEDURE  Allot_Data  
+@Data_PKID INT,
+@Pro_PKID INT,
+@Allot_Quantity	INT
+as  
+
+DECLARE @SQL NVARCHAR(1000),@T NVARCHAR(500)  
+SET @T =(SELECT Tab_Name FROM DataManage.DBO.Project_Info WHERE PKID=@Pro_PKID) 
+SET @SQL = ' SET ROWCOUNT '+CAST(@Allot_Quantity AS NVARCHAR(50))+' UPDATE '+@T+' SET DataInfo_PKID ='
+			+CAST(@Data_PKID AS NVARCHAR(50))+',Allot_DataInfo_State = 1 WHERE Allot_DataInfo_State < 1 SET ROWCOUNT 0' 
+EXECUTE sp_executesql @SQL 
+/************************添加基本的活动信息***************************************/
+/*添加基本的活动信息
+exec Add_DataInfo '活动6',1,'2009-09-09','2009-11-11','这是测试的','andlau'
+*/
+ALTER PROCEDURE  Add_DataInfo  
+@Data_Name NVARCHAR(50),
+@Data_Sate INT,
+@tb_beginTime NVARCHAR(50),
+@tb_endTime NVARCHAR(50),
+@Data_Remark NVARCHAR(1000),
+@Data_OperationName NVARCHAR(50),
+@Data_PKID INT OUTPUT
+as  
+IF @tb_beginTime = ''
+	SET @tb_beginTime = GETDATE()
+INSERT INTO DataManage.DBO.Data_Info(Data_Name,Data_State,Data_StartTime,Data_EndTime,Data_Remark,Data_OperationName,Data_OperationTime)
+VALUES(@Data_Name,@Data_Sate,@tb_beginTime,@tb_endTime,@Data_Remark,@Data_OperationName,GETDATE())
+SET @Data_PKID = @@IDENTITY
+
+/***********************取消活动，收回没有拨打的数据******************************/
+/*取消活动信息  
+SELECT A.Tab_Name,A.PKID,A.Pro_Name FROM DataManage.DBO.Project_Info AS A   
+WHERE CHARINDEX(','+RTRIM(A.PKID)+',',','+(SELECT Data_Contain FROM DataManage.DBO.Data_Info WHERE PKID = 15)+',')>0   
+  
+EXEC Cancel_DataInfo 29
+*/  
+alter PROCEDURE Cancel_DataInfo  
+@Data_PKID INT  
+AS  
+DECLARE @PROID NVARCHAR(50)  --获取项目的ID  
+DECLARE @PROName NVARCHAR(50) --获取项目的名称  
+DECLARE @Str NVARCHAR(50)  --包含项目ID的字符串  133,134,135,  
+SET @Str = (SELECT Data_Contain FROM DataManage.DBO.Data_Info WHERE PKID = @Data_PKID)  
+DECLARE   @_error INT  
+SET   @_error = 0    
+DECLARE @SQL NVARCHAR(1000)  
+  
+--开始一个事务             
+BEGIN TRANSACTION _TRANSACTION  
+ WHILE((SELECT CHARINDEX(',',@Str)) > 0)  
+ BEGIN  
+  SET @PROID = SUBSTRING(@str,1,CHARINDEX(',',@str)-1)  --获取项目的ID 133  
+  --获取项目的名称  
+  SET @PROName = (SELECT Tab_Name FROM DataManage.DBO.Project_Info WHERE PKID = SUBSTRING(@str,1,CHARINDEX(',',@str)-1)) --PRO_2009043090637项目1  
+  --更新项目的数据所属的活动ID以及分配的状态  
+  SET @SQL = 'UPDATE '+@PROName+' SET DataInfo_PKID = NULL,Allot_DataInfo_State = 0 FROM '+@PROName+' AS A WHERE NOT EXISTS  
+  (SELECT 1 FROM Call_Result B WHERE A.pkid = B.R_DataPKID AND B.R_ProPKID ='+@PROID+')  AND A.DataInfo_PKID ='+CAST(@Data_PKID AS NVARCHAR(50))  
+  print @SQL
+	EXECUTE sp_executesql @SQL  
+  IF @@error<>0 SET @_error = 1  
+  SET @Str = REPLACE(@Str,@PROID+',','')
+ END  
+  
+DELETE FROM DataManage.DBO.Data_Info WHERE PKID = @Data_PKID  
+ IF @@error<>0 SET @_error = 1  
+  
+--事务判断  
+IF @_error > 0   
+ ROLLBACK TRANSACTION _TRANSACTION --回滚事务  
+ELSE  
+ COMMIT TRANSACTION _TRANSACTION--结束一个事务  
+
+/***********************************获取当前活动的数据***************************************/
+/*获取当前活动的数据      
+DECLARE @A INT    
+DECLARE @B INT    
+EXEC Get_AllDataInfo 9,1,20,'*','AND Allot_Agent_State = 1',@A,@B
+*/      
+ALTER PROCEDURE Get_AllDataInfo      
+@Data_PKID INT,      
+@CurrentPage INT,    
+@PageSize INT,        
+@strGetFields NVARCHAR(1000),                --需要查询的列  
+@strWhere NVARCHAR(500),
+@PageCount INT OUT,    
+@RecordCount INT OUT     
+AS      
+    
+DECLARE @Str NVARCHAR(50),@DataName NVARCHAR(50)  --包含项目ID的字符串  133,134,135,项目名称，      
+SELECT @Str=Data_Contain,@DataName=Data_Name FROM DataManage.DBO.Data_Info WHERE PKID = @Data_PKID      
+----------------------------------------获取项目名称和项目包含表名    
+DECLARE @PROName nvarchar(100),@ProjectName nvarchar(100),@SQL NVARCHAR(2000) 
+SET @SQL = ''  
+SET @StrWhere = ' WHERE DataInfo_PKID ='+CAST(@Data_PKID AS NVARCHAR(50))+ @strWhere  
+----------------------------------------循环项目   
+WHILE((SELECT CHARINDEX(',',@Str)) > 0)      
+  BEGIN      print @StrWhere
+  --获取项目的名称      
+  SELECT @PROName = Tab_Name,@ProjectName=Pro_Name FROM DataManage.DBO.Project_Info WHERE PKID = SUBSTRING(@str,1,charindex(',',@str)-1)    
+  --获取项目下的数据      
+  IF @SQL = ''      
+   SET @SQL =' SELECT '''+@ProjectName+''' AS ProjectName,'''+@DataName+''' AS DataName,'+@strGetFields+' INTO ##Temp1 FROM '+@PROName+@StrWhere    
+  ELSE       
+   SET @SQL = @SQL + ' UNION ALL SELECT '''+@ProjectName+''' AS ProjectName,'''+@DataName+''' AS DataName,'+@strGetFields+' FROM '  +  @PROName  +  @StrWhere    
+  SET @Str = REPLACE(@Str,LEFT(@str, charindex(',',@str)),'')      
+  END     
+ EXECUTE SP_EXECUTESQL @SQL  
+ SET @RecordCount = @@ROWCOUNT    
+ SET @PageCount = CEILING(@RecordCount * 1.0 / @PageSize)    
+  
+ SET NOCOUNT ON    
+  SELECT * FROM (SELECT ROW_NUMBER() OVER (ORDER BY PKID) AS Temp_ID,* FROM ##Temp1) AS TB   
+  WHERE Temp_ID BETWEEN (@CurrentPage-1) * @PageSize + 1 AND @CurrentPage * @PageSize   
+  DROP TABLE ##Temp1  
+ SET NOCOUNT OFF
+/**********************************获取当前项目的详细数据***************************************/
+--根据项目ID 获取详细数据
+--EXEC GetData_ByProPKID 133
+ALTER PROCEDURE GetData_ByProPKID
+@Pro_PKID INT
+AS
+SET NOCOUNT ON
+DECLARE @TabName NVARCHAR(100),@SQL NVARCHAR(500)
+SET @TabName =(SELECT Tab_Name FROM DataManage.DBO.Project_Info WHERE PKID = @Pro_PKID)
+SET @SQL = 'SELECT * FROM ' + @TabName
+EXECUTE sp_executesql @SQL
+SET NOCOUNT OFF
+/********************************获取当前活动的数据分配给业务员*******************************/
+/*选择活动的数据分配给业务员      
+exec Allot_Agent 1,0,'2|24,3|22,2|21,','abin',1     
+exec Allot_Agent 9,0,'2,4,7,12,','abin',0   
+
+update PRO_2009043090637项目1 set Allot_Agent_State = 0
+update PRO_2009043090637项目2 set Allot_Agent_State = 0
+update PRO_2009043090637项目3 set Allot_Agent_State = 0 
+*/          
+alter PROCEDURE Allot_Agent        
+@Data_PKID INT,     --需要查询的活动名称ID         
+@AgentType INT,       --数据分配类型[0个人、1部门]          
+@StrAgentID VARCHAR(8000),       --要分配的业务员的ID        
+@OperationID NVARCHAR(50),    --分配人       
+@AllotType INT    --0平均分配 1指定数量分配      
+as        
+       
+DECLARE   @_error INT      
+SET   @_error = 0      
+DECLARE @Str NVARCHAR(50)   --包含项目ID的字符串  133,134,135,项目名称，            
+SET @Str=(SELECT Data_Contain FROM DataManage.DBO.Data_Info WHERE PKID = @Data_PKID)            
+        
+DECLARE @StrWhere NVARCHAR(1000) --查询的条件        
+SET @StrWhere = ' WHERE DataInfo_PKID ='+CAST(@Data_PKID AS NVARCHAR(50))+' AND Allot_Agent_State = 0 '        
+        
+DECLARE @PROName NVARCHAR(100),@SQL NVARCHAR(4000)      
+DECLARE @SplitStr NVARCHAR(100),@SplitL NVARCHAR(20),@SplitR NVARCHAR(20),@ROWCOUNT INT      
+--开始一个事务                 
+BEGIN TRANSACTION _TRANSACTION     
+-------------------------------------------------------循环项目        
+WHILE((SELECT CHARINDEX(',',@Str)) > 0)          
+BEGIN            
+	--获取项目的名称            
+	SET @PROName = (SELECT Tab_Name FROM DataManage.DBO.Project_Info 
+					WHERE PKID = SUBSTRING(@str,1,CHARINDEX(',',@str)-1))      
+	--循环业务员，修改项目下的数据         
+	DECLARE @AgentID NVARCHAR(4000)        
+	Agent_Split:      
+	SET @AgentID = @StrAgentID
+ ------------------------------------------------------平均分配数据        
+	IF(@AllotType = 0)      
+		BEGIN
+   ------------------------------------------------------计算每个业务员可以分配多少数据      
+			DECLARE @SQL_Count NVARCHAR(4000),@AgentCount INT, @Data_Count INT        
+			SET @AgentCount = (SELECT LEN(@StrAgentID) - LEN(REPLACE(@StrAgentID,',','')))--业务员数量        
+			SET @SQL_Count = N'SELECT @DataCount = COUNT(1) FROM '+ @PROName + @StrWhere        
+           
+			EXEC SP_EXECUTESQL @SQL_Count,N'@DataCount INT OUT',@Data_Count OUT      
+			SET @Data_Count = @Data_Count/@AgentCount  --获取业务员数量        
+			IF @Data_Count = 0 SET @Data_Count = 1      
+  ------------------------------------------------------循环业务员进行数据分配      
+			WHILE((SELECT CHARINDEX(',',@AgentID)) > 0)          
+				BEGIN       
+				  --对数据进行数量限制分配          -- @AgentID = 2,4,8,12,      
+					IF ((SELECT LEN(@AgentID) - LEN(REPLACE(@AgentID,',',''))) > 1) --不是最后一个分配者      
+						SET @SQL ='SET ROWCOUNT '+ CAST(@Data_Count AS CHAR(10))+' UPDATE '+ @PROName +        
+							' SET AgentType=' + CAST(@AgentType AS CHAR(10)) + ',Agent_PKID='''+
+							  SUBSTRING(@AgentID,1,CHARINDEX(',',@AgentID)-1)+''',Allot_Agent_State =1,
+							  Allot_Date = GETDATE(),Allot_ManID ='''+@OperationID+''''+ @StrWhere        
+					ELSE               --如果是最后一个分配者，直接修改数据     --@AgentID = 1004,      
+						SET @SQL ='UPDATE '+ @PROName +' SET AgentType=' + CAST(@AgentType AS CHAR(10))+
+							',Agent_PKID='''+REPLACE(@AgentID,',','')+''',Allot_Agent_State =1,
+							Allot_Date = GETDATE(),Allot_ManID ='''+@OperationID+''''+ @StrWhere        
+        
+					EXEC SP_EXECUTESQL @SQL       
+					IF (@@ROWCOUNT > 0) --分配成功,切割业务员字符        
+						SET @AgentID = SUBSTRING(@AgentID,CHARINDEX(',',@AgentID)+1,LEN(@AgentID))       
+					ELSE     --数据没有分配成功，切换下个项目继续分配      
+						GOTO Pro_Split; 
+     
+					IF @@error<>0 SET @_error = 1      
+				END      
+		END      
+------------------------------------------------------指定分配数据量      
+	ELSE      
+		BEGIN            -- @StrAgentID = 20|2,27|4,38|8, 
+			IF (@StrAgentID = '')	BREAK   
+			SET @SplitStr = SUBSTRING(@StrAgentID,1, CHARINDEX(',',@StrAgentID)-1) -- 20|123      
+			SET @SplitL = SUBSTRING(@SplitStr,1,CHARINDEX('|',@SplitStr)-1)   --20      
+			SET @SplitR = SUBSTRING(@SplitStr,CHARINDEX('|',@SplitStr)+1,LEN(@SplitStr)) --123      
+
+			SET @SQL ='SET ROWCOUNT ' + CAST(@SplitL AS CHAR(10)) + ' UPDATE ' + @PROName + 
+					' SET AgentType='+ CAST(@AgentType AS CHAR(10))+',Agent_PKID=''' + @SplitR + ''',
+					 Allot_Agent_State =1, Allot_Date = GETDATE(),Allot_ManID =''' + @OperationID + ''''+ @StrWhere        
+          
+			EXEC SP_EXECUTESQL @SQL      
+			SET @ROWCOUNT = @@ROWCOUNT      
+			IF (@ROWCOUNT = @SplitL)    --分配成功,分配数目正确，切割业务员字符      
+				BEGIN 
+					SET @StrAgentID = SUBSTRING(@StrAgentID,CHARINDEX(',',@StrAgentID)+1,LEN(@StrAgentID))       
+					GOTO Agent_Split;      
+				END      
+			ELSE         --数据没有分配成功，切换下个项目继续分配      
+				BEGIN    
+					SET @StrAgentID = REPLACE(@StrAgentID,@SplitStr,STR(@SplitL-@ROWCOUNT)+'|'+STR(@SplitR))   
+					GOTO Pro_Split;      
+				END 
+    
+			IF @@error<>0 SET @_error = 1
+		END 
+        
+	Pro_Split:      
+	SET @Str = SUBSTRING(@Str,CHARINDEX(',',@Str)+1,LEN(@Str))   
+END     
+    
+	--事务判断      
+	IF @_error > 0       
+	 ROLLBACK TRANSACTION _TRANSACTION --回滚事务      
+	ELSE      
+	 COMMIT TRANSACTION _TRANSACTION--结束一个事务 
+
+/**************************获取当前活动的数据统计信息及明细***************************************/
+/*获取当前活动的数据统计信息及明细        
+EXEC Get_AllData_Stat 9,1
+*/      
+alter PROCEDURE Get_AllData_Stat      
+@Data_PKID INT,  
+@GetFields INT  
+AS      
+----------------------------------------项目数，已分配数，未分配数  
+DECLARE  @Pro_Count INT, @allotTotal INT,@allotNo INT,@allotYes INT  
+SET @Pro_Count = 0  
+SET @allotTotal = 0  
+SET @allotNo = 0  
+SET @allotYes = 0  
+------------------------------------------包含项目ID的字符串  133,134,135,项目名称  
+DECLARE @Str NVARCHAR(50),@DataName NVARCHAR(50)       
+SELECT @Str=Data_Contain,@DataName=Data_Name FROM DataManage.DBO.Data_Info WHERE PKID = @Data_PKID    
+----------------------------------------获取项目名称和项目包含表名    
+DECLARE @PROName nvarchar(100),@ProjectName nvarchar(100),@SQL NVARCHAR(2000),@StrWhere NVARCHAR(1000)   
+SET @StrWhere = ' WHERE DataInfo_PKID ='+CAST(@Data_PKID AS NVARCHAR(50))  
+----------------------------------------循环项目   
+SET NOCOUNT ON  
+WHILE((SELECT CHARINDEX(',',@Str)) > 0)      
+  BEGIN      
+  --获取项目的名称  @PROName = PRO_2009043090637项目1  @ProjectName = 项目1 @str = 133,134,135,  
+  SELECT @PROName = Tab_Name,@ProjectName=Pro_Name FROM DataManage.DBO.Project_Info WHERE PKID = SUBSTRING(@str,1,charindex(',',@str)-1)    
+  --获取项目下的数据         
+   SET @SQL = N' SELECT @allotTotal = @allotTotal + COUNT(1),  
+        @allotNo = @allotNo + ISNULL(SUM(CASE Allot_Agent_State WHEN 0 THEN 1 END),0),  
+        @allotYes = @allotYes + ISNULL(SUM(CASE Allot_Agent_State WHEN 1 THEN 1 END),0)   
+      FROM  ' + @PROName + @StrWhere  
+  
+  EXECUTE SP_EXECUTESQL @SQL,N'@Pro_Count INT OUT,@allotTotal INT OUT,@allotNo INT OUT,@allotYes INT OUT',  
+     @Pro_Count OUTPUT,@allotTotal OUTPUT,@allotNo OUTPUT,@allotYes OUTPUT  
+  SET @Pro_Count = @Pro_Count + 1  
+  SET @Str = REPLACE(@Str,LEFT(@str, charindex(',',@str)),'')      
+  END    
+  
+IF @GetFields = 0  
+SELECT @Pro_Count AS Pro_Count,@allotTotal AS allotTotal,@allotNo AS allotNo,@allotYes AS allotYes,*   
+FROM DBO.Data_Info WHERE PKID = @Data_PKID  
+ELSE  
+SELECT @DataName AS DataName,@Pro_Count AS Pro_Count,@allotTotal AS allotTotal,@allotNo AS allotNo,@allotYes AS allotYes  
+SET NOCOUNT OFF  
+

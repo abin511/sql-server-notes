@@ -1,0 +1,31 @@
+1、需要的文件   
+  sqlrun.cab   
+  setup.ell   
+  sqlrun01.msi   
+  instmsi.exe   
+  setup.exe   
+  sqlresld.dll   
+  (win200   可能需要semnt.dll)   
+  2、新建一配置文件   
+  例；a.ini   
+  [Options]   
+  TARGETDIR="C:\Program   Files\Microsoft   SQL   Server\MSSQL\Binn\"   
+  DATADIR="C:\Program   Files\Microsoft   SQL   Server\MSSQl\Data\"   
+  INSTANCENAME="实例名"   
+  SAPASSWORD="密码"   
+  SECURITYMODE=SQL   
+  说明：   
+  TARGETDIR   安装目录   
+  DATADIR   数据库安装目录，在该目录下应该有master,msdb,tempdb,model数据库（8个文件），如果是新环境，可能需要将这几个文件打包到安装包，嗯，安装文件现的大一些，cool一些，嘿嘿（符合微软作风）   
+  SAPASSWORD设置密码，但这个密码好像没用，安装之后再通过sqldmo改（加密？）   
+  SECURITYMODE=SQL一定要，否则不能用查询分析器连接   
+  3、命令   
+  安装setup.exe   /i   sqlrun01.msi   /settings   a.ini   /l   log.log   
+  卸载setup.exe   /x   sqlrun01.msi   
+  4、备注   
+    
+  如果是win2000，要将semnt.dll提前装到TARGETDIR\mssql$‘实例’\binn下   
+  文件都可以在sqlserver安装盘上找到，如果不清楚可以问我   
+    
+  一共可以安装16个实例，相应的用sqlrunXX。msi，   
+  如果不想装客户端连接工具，请再加上两了dll：DBNMPNTW.DLL;ntwdblib.DLL

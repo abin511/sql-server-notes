@@ -1,0 +1,22 @@
+DECLARE @a VARCHAR(10)
+SET @a='哈哈abcdefghijklmnopqrst'
+/*哈哈abcdef
+
+这里定义的长度是10，那么就是说，这里只能存储10个字符，根据一个汉字两个字符，一个字母一个字符的话，那结果就是"哈哈abcdef",存储空间为10个字节
+*/
+
+DECLARE @b NVARCHAR(10)
+SET @b='哈哈abcdefghijklmnopqrst'
+/*哈哈abcdefgh
+
+这里也是指存储10个字符， Unicode数据,汉字，字母统统算一个字符
+所以得到结果“哈哈abcdefgh”,存储空间为20个字节
+
+*/
+
+SELECT @a,@b
+
+
+varchar(n)
+VARCHAR,一个汉字算两个字符，一个字母算一个字符，最大长度8000字符[长度]，varchar变长字符数据类型与存储数据的实际长度是一致的
+NVARCHAR,汉字，字母统统算一个字符，最大长度4000字符[长度]，但Unicode数据是已双字节来占用存储空间的

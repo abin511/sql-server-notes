@@ -1,0 +1,73 @@
+1、同一台服务器，不同的数据库查询
+select a.*,b.* from servername1.dbname1.dbo1.tablea a,servername2.dbname2.dbo2.tableb b where a.col1 = b.col2
+
+2、不同的服务器，跨库查询
+--SQl跨服务器查询还有一种不写了
+select * from OPENDATASOURCE('SQLOLEDB','Data Source=127.0.0.1;User ID=sa;Password=123456').GamingDB.dbo.T_UserManage
+
+--使用联结服务器
+exec sp_addlinkedserver 'Test','','MSDASQL',NULL,NULL,'DRIVER={SQL Server};SERVER=127.0.0.1;UID=sa;PWD=123456;'
+exec sp_addlinkedsrvlogin @rmtsrvname='Test',@useself='false',@locallogin='sa',@rmtuser='sa',@rmtpassword='123456'   
+GO
+
+--查询方法 Test是别名 Gaming是库名 T_UserManage是表名
+select * from Test.GamingDB.dbo.T_UserManage
+
+
+--Coyp的一些方法
+
+/*不同服务器数据库之间的数据操作*/
+
+--创建链接服务器 
+exec sp_addlinkedserver   'ITSV ', ' ', 'SQLOLEDB ', '远程服务器名或ip地址 ' 
+exec sp_addlinkedsrvlogin 'ITSV ', 'false ',null, '用户名 ', '密码 ' 
+
+--查询示例 
+select * from ITSV.数据库名.dbo.表名 
+
+--导入示例 
+select * into 表 from ITSV.数据库名.dbo.表名 
+
+--以后不再使用时删除链接服务器 
+exec sp_dropserver 'ITSV ', 'droplogins ' 
+
+--连接远程/局域网数据(openrowset/openquery/opendatasource) 
+--1、openrowset 
+
+--查询示例 
+select * from openrowset( 'SQLOLEDB ', 'sql服务器名 '; '用户名 '; '密码 ',数据库名.dbo.表名) 
+
+--生成本地表 
+select * into 表 from openrowset( 'SQLOLEDB ', 'sql服务器名 '; '用户名 '; '密码 ',数据库名.dbo.表名) 
+
+--把本地表导入远程表 
+insert openrowset( 'SQLOLEDB ', 'sql服务器名 '; '用户名 '; '密码 ',数据库名.dbo.表名) 
+select *from 本地表 
+
+--更新本地表 
+update b 
+set b.列A=a.列A 
+from openrowset( 'SQLOLEDB ', 'sql服务器名 '; '用户名 '; '密码 ',数据库名.dbo.表名)as a inner join 本地表 b 
+on a.column1=b.column1 
+
+--openquery用法需要创建一个连接 
+
+--首先创建一个连接创建链接服务器 
+exec sp_addlinkedserver   'ITSV ', ' ', 'SQLOLEDB ', '远程服务器名或ip地址 ' 
+--查询 
+select * 
+FROM openquery(ITSV, 'SELECT * FROM 数据库.dbo.表名 ') 
+--把本地表导入远程表 
+insert openquery(ITSV, 'SELECT * FROM 数据库.dbo.表名 ') 
+select * from 本地表 
+--更新本地表 
+update b 
+set b.列B=a.列B 
+FROM openquery(ITSV, 'SELECT * FROM 数据库.dbo.表名 ') as a 
+inner join 本地表 b on a.列A=b.列A 
+
+--3、opendatasource/openrowset 
+SELECT   * 
+FROM   opendatasource( 'SQLOLEDB ', 'Data Source=ip/ServerName;User ID=登陆名;Password=密码 ' ).test.dbo.roy_ta 
+--把本地表导入远程表  
+

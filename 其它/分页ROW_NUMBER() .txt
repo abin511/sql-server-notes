@@ -1,0 +1,118 @@
+CREATE procedure [dbo].[sp_super_page]
+
+@TableName varchar(5000), --要进行分页的表，也可以用联接，如dbo.employee或dbo.employee INNER JOIN dbo.jobs ON (dbo.employee.job_id=dbo.jobs.job_id)
+
+@Fields varchar(5000), --表中的字段，可以使用*代替
+
+@OrderField varchar(5000), --要排序的字段
+
+@sqlWhere varchar(5000), --WHERE子句
+
+@pageSize int, --分页的大小
+
+@pageIndex int, --要显示的页的索引
+
+@TotalPage int output --页的总数
+
+as
+
+begin
+
+    Begin Tran
+
+    Declare @sql nvarchar(4000);
+
+    Declare @totalRecord int; --记录总数
+
+ 
+
+    if (@sqlWhere IS NULL or @sqlWhere = '')
+
+       --在没有WHERE子句的情况下得到表中所有的记录总数
+
+       set @sql = 'select @totalRecord = count(*) from ' + @TableName
+
+    else
+
+       --利用WHERE子句进行过滤
+
+       set @sql = 'select @totalRecord = count(*) from ' + @TableName + ' where ' + @sqlWhere
+
+ 
+
+    --执行sql语句得到记录总数
+
+    EXEC sp_executesql @sql,N'@totalRecord int OUTPUT',@totalRecord OUTPUT
+
+ 
+
+    select @TotalPage=CEILING((@totalRecord+0.0)/@PageSize)
+
+ 
+
+    --根据特定的排序字段为为行分配唯一ROW_NUMBER的顺序
+
+    if (@sqlWhere IS NULL or @sqlWhere = '')
+
+       set @sql = 'select * from (select ROW_NUMBER() over(order by ' + @OrderField + ') as rowId,' + @Fields + ' from ' + @TableName
+
+    else
+
+       set @sql = 'select * from (select ROW_NUMBER() over(order by ' + @OrderField + ') as rowId,' + @Fields + ' from ' + @TableName + ' where ' + @SqlWhere
+
+    
+
+    --确保当前页的索引在合理的范围之内
+
+    if @PageIndex<=0 
+
+       Set @pageIndex = 1
+
+    if @pageIndex>@TotalPage
+
+       Set @pageIndex = @TotalPage
+
+ 
+
+    --得到当前页在整个结果集中准确的ROW_NUMBER值
+
+    Declare @StartRecord int
+
+    Declare @EndRecord int
+
+    set @StartRecord = (@pageIndex-1)*@PageSize + 1
+
+    set @EndRecord = @StartRecord + @pageSize - 1
+
+ 
+
+    --输出当前页中的数据
+
+    set @Sql = @Sql + ') as t' + ' where rowId between ' + Convert(varchar(50),@StartRecord) + ' and ' +   Convert(varchar(50),@EndRecord)
+
+    Exec(@Sql)
+
+ 
+
+    If @@Error <> 0
+
+       Begin
+
+           RollBack Tran
+
+           Return -1
+
+       End
+
+    Else
+
+       Begin
+
+           Commit Tran
+
+           Return @totalRecord
+
+       End    
+
+end
+

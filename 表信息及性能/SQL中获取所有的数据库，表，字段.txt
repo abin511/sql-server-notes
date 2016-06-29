@@ -1,0 +1,87 @@
+
+SQL中获取所有的数据库，表，字段
+ 
+
+注：本操作是基于SQL Server2008
+
+0.查询所有的数据库：
+select [name] from [sysdatabases] order by [name]
+
+1.获取所有数据库名:
+Select Name FROM Master..SysDatabases where name not in('master','model','msdb','tempdb','northwind','pubs','ReportServer','ReportServerTempDB')
+
+2.获取所有表名:
+select name from sysobjects where xtype='U'
+XType='U':表示所有用户表;
+XType='S':表示所有系统表;
+
+3.获取所有字段名:
+Select Name from SysColumns Where id=Object_Id('TableName')
+
+4.查询表的所有字段名：    
+Select name from syscolumns Where ID=OBJECT_ID('表名')    
+select * from information_schema.tables    --表名
+select * from information_schema.views    --试图
+select * from information_schema.columns    
+
+select * from information_schema.PARAMETERS order by SPECIFIC_NAME        --存储过程
+   
+   
+5.获取表字段名称，属性    
+SELECT     a.colorder AS 字段序号, a.name AS 字段名,     标识        = case when COLUMNPROPERTY( a.id,a.name,'IsIdentity')=1 then '√'else '' end, (CASE WHEN
+                          (SELECT     COUNT(*)
+                            FROM          sysobjects
+                            WHERE      (name IN
+                                                       (SELECT     name
+                                                         FROM          sysindexes
+                                                         WHERE      (id = a.id) AND (indid IN
+                                                                                    (SELECT     indid
+                                                                                      FROM          sysindexkeys
+                                                                                      WHERE      (id = a.id) AND (colid IN
+                                                                                                                 (SELECT     colid
+                                                                                                                   FROM          syscolumns
+                                                                                                                   WHERE      (id = a.id) AND (name = a.name))))))) AND (xtype = 'PK')) > 0 THEN '√' ELSE '' END) AS 主键, 
+                      b.name AS 类型, COLUMNPROPERTY(a.id, a.name, 'PRECISION') AS 长度, 占用字节数 = a.length, ISNULL(COLUMNPROPERTY(a.id, a.name, 'Scale'), 
+                      0) AS 小数位数, (CASE WHEN a.isnullable = 1 THEN '√' ELSE '' END) AS 允许空, g.value AS 字段说明
+FROM         sys.syscolumns AS a LEFT OUTER JOIN
+                      sys.systypes AS b ON a.xtype = b.xusertype INNER JOIN
+                      sys.sysobjects AS d ON a.id = d.id AND d.xtype = 'U' AND d.name <> 'dtproperties' LEFT OUTER JOIN
+                      sys.syscomments AS e ON a.cdefault = e.id LEFT OUTER JOIN
+                      sys.extended_properties AS g ON a.id = g.major_id AND a.colid = g.minor_id
+where d.name=‘表名’                  
+ORDER BY a.id, 字段序号   
+
+6.获取试图字段名称，属性   
+
+select distinct a.colid as '序号',a.name as '列名' ,b.name as '数据类型',COLUMNPROPERTY(a.id, a.name, 'PRECISION') AS 长度,占用字节数 = a.length, ISNULL(COLUMNPROPERTY(a.id, a.name, 'Scale'), 
+                      0) AS 小数位数, (CASE WHEN a.isnullable = 1 THEN '√' ELSE '' END) AS 允许空,g.value AS 字段说明 from syscolumns a 
+left join sys.systypes b on a.xtype=b.xusertype 
+right join sysobjects d on a.id =
+(select id from sysobjects where id = object_id('试图名称'))
+LEFT OUTER JOIN
+                      sys.extended_properties AS g ON a.id = g.major_id AND a.colid = g.minor_id
+order by a.colid
+   
+  
+
+7.得到数据库存储过程列表：
+
+select * from dbo.sysobjects where OBJECTPROPERTY(id, N'IsProcedure') = 1 order by name
+
+8.得到某个存储过程的参数信息：(SQL方法)
+
+select c.colorder as 字段序号, Substring(c.name,2,(len(c.name))) as 字段名,b.name as 类型,
+COLUMNPROPERTY(c.id, c.name, 'PRECISION') AS 长度,c.length as 占用字节数,
+ISNULL(COLUMNPROPERTY(c.id, c.name, 'Scale'),0) AS 小数位数,
+(CASE WHEN c.isnullable = 1 THEN '√' ELSE '' END) AS 允许空,g.value AS 字段说明, 
+(case c.isoutparam when 1 then '输入/输出' when 0 then '输入' else '输出' end) 
+as 参数类型 from syscolumns as c 
+left OUTER JOIN sys.systypes b on c.xusertype=b.xusertype 
+LEFT OUTER JOIN sys.extended_properties AS g ON c.id = g.major_id AND c.colid = g.minor_id     
+where c.ID in (SELECT id FROM sysobjects as a WHERE OBJECTPROPERTY(id, N'IsProcedure') = 1 
+and id = object_id(N'getnextmonth')) 
+ORDER BY c.id, 字段序号   
+
+9.得到某个存储过程的参数信息：(Ado.net方法) 
+
+SqlCommandBuilder.DeriveParameters(mysqlcommand); 

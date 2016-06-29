@@ -1,0 +1,41 @@
+--SQL Server数据库字典--主键.外键.约束.视图.函数.存储过程.触发器
+SELECT DISTINCT 
+        o.xtype, 
+      CASE o.xtype WHEN 'X' THEN '扩展存储过程' WHEN 'TR' THEN '触发器' WHEN 'PK' THEN
+       '主键' WHEN 'F' THEN '外键' WHEN 'C' THEN '约束' WHEN 'V' THEN '视图' WHEN 'FN'
+       THEN '函数-标量' WHEN 'IF' THEN '函数-内嵌' WHEN 'TF' THEN '函数-表值' ELSE '存储过程'
+       END AS 类型, o.name AS 对象名, o.crdate AS 创建时间, o.refdate AS 更改时间, 
+      c.text AS 声明语句
+FROM dbo.sysobjects o LEFT OUTER JOIN
+      dbo.syscomments c ON o.id = c.id
+WHERE (o.xtype IN ('X', 'TR', 'C', 'V', 'F', 'IF', 'TF', 'FN', 'P', 'PK')) AND 
+      (OBJECTPROPERTY(o.id, N'IsMSShipped') = 0)
+ORDER BY CASE o.xtype WHEN 'X' THEN '扩展存储过程' WHEN 'TR' THEN '触发器' WHEN
+       'PK' THEN '主键' WHEN 'F' THEN '外键' WHEN 'C' THEN '约束' WHEN 'V' THEN '视图'
+       WHEN 'FN' THEN '函数-标量' WHEN 'IF' THEN '函数-内嵌' WHEN 'TF' THEN '函数-表值'
+       ELSE '存储过程' END DESC
+
+
+--SQL Server数据库字典--索引
+SELECT TOP 100 PERCENT --a.id, 
+      CASE WHEN b.keyno = 1 THEN c.name ELSE '' END AS 表名, 
+      CASE WHEN b.keyno = 1 THEN a.name ELSE '' END AS 索引名称, d.name AS 列名, 
+      b.keyno AS 索引顺序, CASE indexkey_property(c.id, b.indid, b.keyno, 'isdescending') 
+      WHEN 1 THEN '降序' WHEN 0 THEN '升序' END AS 排序, CASE WHEN p.id IS NULL 
+      THEN '' ELSE '√' END AS 主键, CASE INDEXPROPERTY(c.id, a.name, 'IsClustered') 
+      WHEN 1 THEN '√' WHEN 0 THEN '' END AS 聚集, CASE INDEXPROPERTY(c.id, 
+      a.name, 'IsUnique') WHEN 1 THEN '√' WHEN 0 THEN '' END AS 唯一, 
+      CASE WHEN e.id IS NULL THEN '' ELSE '√' END AS 唯一约束, 
+      a.OrigFillFactor AS 填充因子, c.crdate AS 创建时间, c.refdate AS 更改时间
+FROM dbo.sysindexes a INNER JOIN
+      dbo.sysindexkeys b ON a.id = b.id AND a.indid = b.indid INNER JOIN
+      dbo.syscolumns d ON b.id = d.id AND b.colid = d.colid INNER JOIN
+      dbo.sysobjects c ON a.id = c.id AND c.xtype = 'U' LEFT OUTER JOIN
+      dbo.sysobjects e ON e.name = a.name AND e.xtype = 'UQ' LEFT OUTER JOIN
+      dbo.sysobjects p ON p.name = a.name AND p.xtype = 'PK'
+WHERE (OBJECTPROPERTY(a.id, N'IsUserTable') = 1) AND (OBJECTPROPERTY(a.id, 
+      N'IsMSShipped') = 0) AND (INDEXPROPERTY(a.id, a.name, 'IsAutoStatistics') = 0)
+ORDER BY c.name, a.name, b.keyno
+
+
+

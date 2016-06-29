@@ -1,0 +1,83 @@
+*
+在库TEST上建立全文索引
+*/
+use test
+create table poofly(id int not null, name varchar(10))
+go
+/* 首先创建一个唯一索引，以便全文索引利用*/
+create unique clustered  index un_ky1 on poofly(id)
+/*创建全文目录*/
+create FULLTEXT CATALOG FT1 AS DEFAULT
+/*C创建全文索引*/
+create FULLTEXT INDEX ON poofly(NAME) key index un_ky1 ON  FT1
+/*修改全文目录*/
+alter FULLTEXT CATALOG FT1  REBUILD
+/*删除全文目录FT(含有全文索引时候不能删除)*/
+drop fulltext catalog ft
+/*查看数据库所有的全文目录*/
+select* from sys.fulltext_catalogs
+/*
+fulltext_catalog_id name                                                                                                                             path                                                                                                                                                                                                                                                             is_default is_accent_sensitivity_on data_space_id file_id     principal_id is_importing
+------------------- -------------------------------------------------------------------------------------------------------------------------------- ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- ---------- ------------------------ ------------- ----------- ------------ ------------
+5                   test                                                                                                                             NULL                                                                                                                                                                                                                                                             0          1                        NULL          NULL        1            0
+11                  FT1                                                                                                                              NULL                                                                                                                                                                                                                                                             1          1                        NULL          NULL        1            0
+*/
+/* 查看所有用到全文索引的表*/
+exec sp_help_fulltext_tables
+/*
+TABLE_OWNER                                                                                                                      TABLE_NAME                                                                                                                       FULLTEXT_KEY_INDEX_NAME                                                                                                          FULLTEXT_KEY_COLID FULLTEXT_INDEX_ACTIVE FULLTEXT_CATALOG_NAME
+-------------------------------------------------------------------------------------------------------------------------------- -------------------------------------------------------------------------------------------------------------------------------- -------------------------------------------------------------------------------------------------------------------------------- ------------------ --------------------- --------------------------------------------------------------------------------------------------------------------------------
+dbo                                                                                                                              poofly                                                                                                                           un_ky1                                                                                                                           1                  1                     FT1
+*/
+/*
+在库TEST上建立全文索引
+*/
+use test
+create table poofly(id int not null, name varchar(10))
+go
+/* 首先创建一个唯一索引，以便全文索引利用*/
+create unique clustered  index un_ky1 on poofly(id)
+/*创建全文目录*/
+create FULLTEXT CATALOG FT1 AS DEFAULT
+/*C创建全文索引*/
+create FULLTEXT INDEX ON poofly(NAME) key index un_ky1 ON  FT1
+/*修改全文目录*/
+alter FULLTEXT CATALOG FT1  REBUILD
+/*删除全文目录FT(含有全文索引时候不能删除)*/
+drop fulltext catalog ft
+---------------------------------------------------
+--使用contains关键字进行全文索引
+
+--1.前缀搜索
+select name from tb where contains(name,'"china*"')
+/*--注意这里的* 返回结果会是 chinax chinay chinaname china  
+--返回前缀是china的name 
+--如果不用“”隔开 那么系统会都城 contains(name,'china*') 与china* 匹配*/
+
+--2.使用派生词搜索
+select name from tb where contains(name,'formsof(inflectional,"foot")')
+/* 出来结果可能是 foot feet (所有动词不同形态 名词单复数形式)*/
+
+--3.词加权搜索
+select value from tb where contains(value , 'ISABOUT(performance weight(.8))')
+/*全值用0-1的一个数字表示 表示每个词的重要程度*/
+
+--4.临近词搜素
+select * from tb where contains(document,'a near b')
+/* 出来的结果是“a”单词与“b”单词临近的document 
+可以写成 contains(document,'a ~ b')
+*/
+--5.布尔逻辑搜素
+select * from tb where contains(name,'"a" and "b"')
+/*返回既包含A 又包含 B单词的行 
+当然 这里的AND 关键字还有换成 OR ,AND NOT 等
+*/
+--------------------------------------------------
+--你还可以使用RREETEXT 进行模糊搜索
+--任意输入文本 全文索引自动识别重要单词 然后构造一个查询
+use test 
+go
+select * from tb where freetext(wendang,'zhubajie chi xi gua !')
+--============================================================
+--对全文索引性能影响因素很多 包括硬件资源方面 还有SQL 自身性能 和MSFTESQL服务的效率等方面
+--它的搜索性能有2方面 : 全文索引性能 和 全文查询性能

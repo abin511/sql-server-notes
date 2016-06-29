@@ -1,0 +1,193 @@
+COALESCE ( expression [ ,...n ] ) 
+接受多个参数，返回第一个非空表达式或字段，如果所有参数均为 NULL，则 COALESCE 返回 NULL
+SELECT e_id,COALESCE (byMonth*12,byHalfYear*2,byYear) as salary_amount FROM TAB
+
+使用coalesce和nullif减轻sql的工作量
+select coalesce(nullif(type_a,997),0) as type_a from tbl
+
+NULLIF ( expression , expression )
+接受两个参数，如果两个参数相等，那么返回null，否则返回第一个参数
+SELECT NULLIF(expression,expression) AS 'NEWS' FROM TAB
+
+ISNULL ( check_expression , replacement_value ) 
+如果 check_expression 不为 NULL，那么返回该表达式的值；否则返回 replacement_value。
+SELECT ISNULL (expression,'aaa') AS 'NEWS' FROM TAB
+
+
+CHARINDEX ( expression1 , expression2 [ , start_location ] ) 
+返回第一个表达式在第二个表达式中出现的起始位置 以1开始
+charindex(子串，母串)找出子串在母串出现的Index 
+select * from @t where charindex('abc',v)>0
+
+PATINDEX ( '%pattern%' , expression )
+patindex(通配子串，母串)找出通配子串在母串出现的Index，按通配符的规则比较 
+select * from @t where patindex('%abc%',v)>0
+
+ROW_NUMBER () OVER ( [  ]  )
+返回结果集分区内行的序列号，每个分区的第一行从 1 开始
+SELECT c.FirstName, c.LastName, ROW_NUMBER() OVER(ORDER BY SalesYTD DESC) AS 'Row Number' FROM TAB C
+
+row_number() OVER (PARTITION BY COL1 ORDER BY COL2) 表示根据COL1分组，在分组内部根据 COL2排序，而此函数计算的值就表示每组内部排序后的顺序编号（组内连续的唯一的)
+with t as(
+  select row_number() over(partition by [type] order by [ID] DESC) rn,*
+  from MS_T_CHANGETYPE
+)
+select * from t where rn=1;//找出如果type相同，就取ID最大的数据
+
+SELECT G.*, ROW_NUMBER() OVER(PARTITION BY a ,b ORDER BY c DESC) ROWN
+2    from 
+/***************************************************************************/
+扩展：
+　　row_number()和rownum差不多，功能更强一点（可以在各个分组内从1开时排序）．
+
+　　rank()是跳跃排序，有两个第二名时接下来就是第四名（同样是在各个分组内）．
+
+　　dense_rank()l是连续排序，有两个第二名时仍然跟着第三名。相比之下row_number是没有重复值的 ．
+
+　　lag（arg1,arg2,arg3): 
+arg1是从其他行返回的表达式 
+arg2是希望检索的当前行分区的偏移量。是一个正的偏移量，时一个往回检索以前的行的数目。 
+arg3是在arg2表示的数目超出了分组的范围时返回的值。
+
+语句一:
+
+select row_number() over(order by sale/cnt desc) as sort, sale/cnt 
+from (
+select -60 as sale,3 as cnt from dual union 
+select 24 as sale,6 as cnt from dual union 
+select 50 as sale,5 as cnt from dual union 
+select -20 as sale,2 as cnt from dual union 
+select 40 as sale,8 as cnt from dual);
+
+执行结果:
+
+          SORT       SALE/CNT
+---------- ----------
+             1             10
+             2              5
+             3              4
+             4            -10
+             5            -20
+
+
+语句二:查询员工的工资,按部门排序
+
+select ename,sal,row_number() over (partition by deptno order by sal desc) as sal_order from scott.emp;
+
+执行结果:
+
+ENAME                           SAL      SAL_ORDER
+-------------------- ---------- ----------
+KING                           5000              1
+CLARK                          2450              2
+MILLER                         1300              3
+SCOTT                          3000              1
+FORD                           3000              2
+JONES                          2975              3
+ADAMS                          1100              4
+SMITH                           800              5
+BLAKE                          2850              1
+ALLEN                          1600              2
+TURNER                         1500              3
+WARD                           1250              4
+MARTIN                         1250              5
+JAMES                           950              6
+
+已选择14行。
+
+语句三:查询每个部门的最高工资
+
+select deptno,ename,sal from 
+     (select deptno,ename,sal,row_number() over (partition by deptno order by sal desc) as sal_order 
+         from scott.emp) where sal_order <2;
+
+执行结果:
+
+       DEPTNO ENAME                          SAL
+---------- -------------------- ----------
+           10 KING                          5000
+           20 SCOTT                         3000
+           30 BLAKE                         2850
+
+已选择3行。
+
+语句四：
+
+select deptno,sal,rank() over (partition by deptno order by sal) as rank_order from scott.emp order by deptno;
+
+执行结果:
+
+     DEPTNO         SAL RANK_ORDER
+---------- ---------- ----------
+         10        1300           1
+         10        2450           2
+         10        5000           3
+         20         800           1
+         20        1100           2
+         20        2975           3
+         20        3000           4
+         20        3000           4
+         30         950           1
+        30        1250           2
+         30        1250           2
+         30        1500           4
+         30        1600           5
+         30        2850           6
+
+已选择14行。
+
+语句五：
+
+select deptno,sal,dense_rank() over(partition by deptno order by sal) as dense_rank_order from scott.emp order by deptn;
+
+执行结果：
+
+     DEPTNO         SAL DENSE_RANK_ORDER
+---------- ---------- ----------------
+         10        1300                 1
+         10        2450                 2
+         10        5000                 3
+         20         800                 1
+         20        1100                 2
+         20        2975                 3
+         20        3000                 4
+         20        3000                 4
+         30         950                 1
+        30        1250                 2
+         30        1250                 2
+         30        1500                 3
+         30        1600                 4
+         30        2850                 5
+
+已选择14行。
+
+语句六：
+
+select deptno,ename,sal,lag(ename,1,null) over(partition by deptno order by ename) as lag_ from scott.emp order by deptno;
+
+执行结果：
+
+
+
+     DEPTNO ENAME                        SAL LAG_
+---------- -------------------- ---------- --------------------
+         10 CLARK                       2450
+         10 KING                        5000 CLARK
+         10 MILLER                      1300 KING
+         20 ADAMS                       1100
+         20 FORD                        3000 ADAMS
+         20 JONES                       2975 FORD
+         20 SCOTT                       3000 JONES
+         20 SMITH                        800 SCOTT
+         30 ALLEN                       1600
+         30 BLAKE                       2850 ALLEN
+         30 JAMES                        950 BLAKE
+         30 MARTIN                      1250 JAMES
+         30 TURNER                      1500 MARTIN
+         30 WARD                        1250 TURNER
+
+已选择14行。(还有一个例子)
+
+
+
+

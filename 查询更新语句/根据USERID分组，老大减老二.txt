@@ -1,0 +1,26 @@
+DECLARE @tmpTable TABLE (userid INT,userlevel INT, buildertime VARCHAR(10))
+INSERT INTO @tmpTable
+SELECT 2,4,'2013-04-01'
+union
+SELECT 2,1,'2013-04-03'
+UNION
+SELECT 3,2,'2013-04-02'
+UNION
+SELECT 2,2,'2013-04-07'
+UNION
+SELECT 4,1,'2013-04-04'
+UNION
+SELECT 4,5,'2013-04-10'
+UNION
+SELECT 4,7,'2013-04-12'
+UNION
+SELECT 2,3,'2013-04-13'
+UNION
+SELECT 4,3,'2013-04-15'
+select * from @tmpTable
+;with t as
+(
+	SELECT DISTINCT b.* FROM @tmpTable AS a
+	CROSS APPLY(SELECT TOP(2) * FROM @tmpTable WHERE a.userid=userid ORDER BY buildertime DESC) as b
+)select t1.*,t2.userlevel-t1.userlevel as [evel] from t as t1 join t as t2
+on t1.userid = t2.userid and t2.buildertime > t1.buildertime

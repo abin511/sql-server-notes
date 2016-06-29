@@ -1,0 +1,6 @@
+/*类似拆分函数的功能*/
+declare @s varchar(50)
+set @s='1,2,3,5,6,7,9'
+select B.v + '1'
+from( select convert(xml,'<s>' + replace(@s, ',', ' </s> <s>') + ' </s>') col1)A 
+OUTER APPLY( select v = N.T.value('.', 'varchar(100)') from A.[col1].nodes('/s') N(T) )B 

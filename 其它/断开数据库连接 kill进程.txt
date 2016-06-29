@@ -1,0 +1,6 @@
+declare   @d   varchar(8000)
+set   @d= ' '
+select   @d=@d+ '   kill   '+cast(spid   as   varchar)+char(13)
+from   master.sys.sysprocesses   where   dbid=23--db_id( 'BooKe.OA.Admin ')
+print @d
+exec(@d)

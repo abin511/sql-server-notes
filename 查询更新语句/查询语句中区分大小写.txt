@@ -1,0 +1,4 @@
+DECLARE @TABLE TABLE(ID INT IDENTITY(1,1),KEYS NVARCHAR(10))
+INSERT INTO @TABLE
+VALUES('AAA'),('aaa'),('AAAaaa'),('aaaAAA'),('bb'),('BBBAA')
+select * from @TABLE where KEYS = 'AAA'  collate Chinese_PRC_CS_AI

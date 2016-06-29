@@ -1,0 +1,10 @@
+--TABLESAMPLE可以获得一个随机的行集合，且每次返回的行数不同
+
+select * from Table_1 tablesample system(50 percent)
+select * from Table_1 tablesample system(3 rows)
+select * from Table_1 tablesample system(3 rows) repeatable(5)
+
+--要得到固定的行数，可以使用TOP，或使用旧版本中的newid()
+
+select top(3) * from Table_1 tablesample system(50 percent)
+select top(3) * from Table_1 order by NEWID()

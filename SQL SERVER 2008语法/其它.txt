@@ -1,0 +1,53 @@
+运算符	操作 
++=		将原始值加上一定的量，并将原始值设置为结果 
+-=		将原始值减去一定的量，并将原始值设置为结果 
+*=		将原始值乘上一定的量，并将原始值设置为结果 
+/=		将原始值除以一定的量，并将原始值设置为结果 
+%=		将原始值除以一定的量，并将原始值设置为余数 
+&=		对原始值执行位与运算，并将原始值设置为结果 
+^=		对原始值执行位异或运算，并将原始值设置为结果 
+|=		对原始值执行位或运算，并将原始值设置为结果 
+
+如：
+DECLARE @x1 int = 5;
+SET @x1 ^= 2;
+SELECT @x1 -- 返回29
+
+
+/***************************************************/
+--新版本的TOP函数，可支持在INSERT,UPDATE,DELETE时，使用TOP，操作只影响前N行
+select * from Table_1
+insert top(1) into Table_1 select data from Table_1
+select * from Table_1
+update top(1) Table_1 set data = data + '.'
+select * from Table_1
+delete top(1) Table_1
+select * from Table_1
+
+--快速删除表数据的技巧（清空表可使用TRUNCATE TABLE，但后者将不会有日志，无法回滚操作）
+begin tran
+declare @rowcount int
+set @rowcount = 100
+while @rowcount = 100
+begin
+	delete top(100) Table_1
+	set @rowcount = @@ROWCOUNT
+end
+rollback tran
+
+/*************************************************************/
+--别名（也叫作同义词）可以为对象分配不同的名称
+--别名不仅可以分配不同的名字，还可以缩短多个部份组成的长对象，如：
+--可以用Emp代替Employee表，也可以用Emp直接代替linkserver.database.owner.Employee表
+
+--创建别名
+create synonym Emp for ReportServer.dbo.Catalog
+
+--使用别名
+select * from Emp
+
+--删除别名
+drop synonym Emp
+
+--values 用法
+select DName,DCode,DDatefrom(values('DemoA','AAA',GETDATE()),('DemoB','BBB',GETDATE()),('DemoC','CCC',GETDATE()),('DemoD','DDD',GETDATE()),('DemoE','EEE',GETDATE()))Demo_Values (DName,DCode,DDate)

@@ -1,0 +1,207 @@
+SQL codeDECLARE @dt datetime
+SET @dt=GETDATE()
+
+DECLARE @number int
+SET @number=3
+
+--1．指定日期该年的第一天或最后一天
+--A. 年的第一天
+SELECT CONVERT(char(5),@dt,120)+'1-1'
+
+--B. 年的最后一天
+SELECT CONVERT(char(5),@dt,120)+'12-31'
+
+
+--2．指定日期所在季度的第一天或最后一天
+--A. 季度的第一天
+SELECT CONVERT(datetime,
+   CONVERT(char(8),
+       DATEADD(Month,
+           DATEPART(Quarter,@dt)*3-Month(@dt)-2,
+           @dt),
+       120)+'1')
+
+--B. 季度的最后一天（CASE判断法）
+SELECT CONVERT(datetime,
+   CONVERT(char(8),
+       DATEADD(Month,
+           DATEPART(Quarter,@dt)*3-Month(@dt),
+           @dt),
+       120)
+   +CASE WHEN DATEPART(Quarter,@dt) in(1,4)
+       THEN '31'ELSE '30' END)
+
+--C. 季度的最后一天（直接推算法）
+SELECT DATEADD(Day,-1,
+   CONVERT(char(8),
+       DATEADD(Month,
+           1+DATEPART(Quarter,@dt)*3-Month(@dt),
+           @dt),
+       120)+'1')
+
+
+--3．指定日期所在月份的第一天或最后一天
+--A. 月的第一天
+SELECT CONVERT(datetime,CONVERT(char(8),@dt,120)+'1')
+
+--B. 月的最后一天
+SELECT DATEADD(Day,-1,CONVERT(char(8),DATEADD(Month,1,@dt),120)+'1')
+
+--C. 月的最后一天（容易使用的错误方法）
+SELECT DATEADD(Month,1,DATEADD(Day,-DAY(@dt),@dt))
+
+
+--4．指定日期所在周的任意一天
+SELECT DATEADD(Day,@number-DATEPART(Weekday,@dt),@dt)
+
+
+--5．指定日期所在周的任意星期几
+--A.  星期天做为一周的第1天
+SELECT DATEADD(Day,@number-(DATEPART(Weekday,@dt)+@@DATEFIRST-1)%7,@dt)
+
+--B.  星期一做为一周的第1天
+SELECT DATEADD(Day,@number-(DATEPART(Weekday,@dt)+@@DATEFIRST-2)%7-1,@dt)
+
+
+1.一个月第一天的
+Select DATEADD(mm, DATEDIFF(mm,0,getdate()), 0)
+
+2.本周的星期一
+Select DATEADD(wk, DATEDIFF(wk,0,getdate()), 0)
+
+3.一年的第一天
+Select DATEADD(yy, DATEDIFF(yy,0,getdate()), 0)
+
+4.季度的第一天
+Select DATEADD(qq, DATEDIFF(qq,0,getdate()), 0)
+
+5.当天的半夜
+Select DATEADD(dd, DATEDIFF(dd,0,getdate()), 0)
+
+6.上个月的最后一天
+Select dateadd(ms,-3,DATEADD(mm, DATEDIFF(mm,0,getdate()), 0))
+
+7.去年的最后一天
+Select dateadd(ms,-3,DATEADD(yy, DATEDIFF(yy,0,getdate()), 0))
+
+8.本月的最后一天
+Select dateadd(ms,-3,DATEADD(mm, DATEDIFF(m,0,getdate())+1, 0))
+
+9.本年的最后一天
+Select dateadd(ms,-3,DATEADD(yy, DATEDIFF(yy,0,getdate())+1, 0))
+
+10.本月的第一个星期一
+select DATEADD(wk, DATEDIFF(wk,0,dateadd(dd,6-datepart(day,getdate()),getdate())), 0) 
+
+返回当前日期和时间
+通过函数GETDATE（），你可以获得当前的日期和时间。函数GETDATE（）可以用来作为DATEDIME型字段的缺省值。这对插入记录时保存当时的时间是有用的。要建立一个表，其中的记录包含有当前的日期和时间，可以添加一个DATETIME型字段，指定其缺省值为函数GETDATE（）的返回值，就象这样：
+
+Create TABLE site_log (
+username VARCHAR(40)，
+useractivity VARCHAR(100)，
+entrydate DATETIME DEFAULT GETDATE())
+
+转换日期和时间
+函数GETDATE（）的返回值在显示时只显示到秒。实际上，SQL Sever内部时间可以精确到毫秒级（确切地说，可以精确到3.33毫秒）。
+要得到不同格式的日期和时间，你需要使用函数CONVERT（）。例如，当下面的这个语句执行时，显示的时间将包括毫秒：
+
+
+-----------------------------------------------------------------------------
+SQL查询一个月第一天/最后一天
+ 
+
+ 1.一个月第一天的
+ Select DATEADD(mm, DATEDIFF(mm,0,getdate()), 0)
+ 2.本周的星期一
+ Select DATEADD(wk, DATEDIFF(wk,0,getdate()), 0)
+ 3.一年的第一天
+ Select DATEADD(yy, DATEDIFF(yy,0,getdate()), 0)
+ 4.季度的第一天
+ Select DATEADD(qq, DATEDIFF(qq,0,getdate()), 0)
+ 5.当天的半夜
+ Select DATEADD(dd, DATEDIFF(dd,0,getdate()), 0)
+ 6.上个月的最后一天
+ Select dateadd(ms,-3,DATEADD(mm, DATEDIFF(mm,0,getdate()), 0))
+ 7.去年的最后一天
+ Select dateadd(ms,-3,DATEADD(yy, DATEDIFF(yy,0,getdate()), 0))
+ 8.本月的最后一天
+ Select dateadd(ms,-3,DATEADD(mm, DATEDIFF(m,0,getdate())+1, 0))
+ 9.本年的最后一天
+ Select dateadd(ms,-3,DATEADD(yy, DATEDIFF(yy,0,getdate())+1, 0))
+ 10.本月的第一个星期一
+ select DATEADD(wk, DATEDIFF(wk,0,dateadd(dd,6-datepart(day,getdate()),getdate())), 0)
+
+
+
+
+5.本年的第一天 
+
+SELECT DATEADD(yy,DATEDIFF(yy,0,getdate()),0)
+
+
+7.去年的最后一天 
+
+
+SELECT dateadd(ms,-3,DATEADD(yy,DATEDIFF(yy,0,getdate()),0))
+
+
+
+10.查询本月的记录 
+
+
+select * from tableName where DATEPART(mm, theDate)
+=DATEPART(mm, GETDATE()) and DATEPART(yy, theDate) 
+= DATEPART(yy, GETDATE())
+
+
+
+
+11.查询本周的记录 
+
+
+select * from tableName where DATEPART(wk, theDate) = DATEPART
+(wk, GETDATE()) and DATEPART(yy, theDate) = DATEPART(yy, GETDATE())
+
+
+
+
+12查询本季的记录 注：其中:GETDATE()是获得系统时间的函数。 
+
+
+select * from tableName where DATEPART(qq, theDate) = DATEPART
+(qq, GETDATE()) and DATEPART(yy, theDate) = DATEPART(yy, GETDATE())
+
+
+
+
+
+13.获取当月总天数: 
+
+
+select DATEDIFF(dd,getdate(),DATEADD
+(mm, 1, getdate()))
+
+select datediff(day,
+dateadd(mm, datediff(mm,'',getdate()), ''),
+dateadd(mm, datediff(mm,'',getdate()), '1900-02-01'))
+-------------------------------------
+Declare   @dt   datetime   
+  Set   @dt=GETDATE()
+  SELECT   32-day(@dt+(32-Day(@dt)))
+
+  SELECT 32-DAY(getdate()+32-DAY(getdate())) 
+
+
+14.获取当前为星期几 
+
+
+DATENAME(weekday, getdate())
+Select CONVERT(VARCHAR(30)，GETDATE()，9) 
+
+----------------------------------------------------------------------------
+sql语句获取本周、本月数据 
+本周：select * from table where datediff(week,C_CALLTIME,getdate())=0     --C_CALLTIME 为日期字段
+本月：select * from table where datediff(Month,C_CALLTIME,getdate())=0   --C_CALLTIME 为日期字段
+本季：select * from table where datediff(qq,C_CALLTIME,getdate())=0 
+前半年1-6，后半年7-12：select * from table where datepart(mm,C_CALLTIME)/7 = datepart(mm,getdate())/7
+

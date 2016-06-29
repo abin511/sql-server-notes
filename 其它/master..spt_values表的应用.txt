@@ -1,0 +1,137 @@
+sql开发中经常需要使用数字或者时间的常量表。
+
+比如，输出一年的月份表，输出1000以内的自然数等等。
+数量连续且不超过2048。那么使用master..spt_values表就会再也方便不过了。
+
+例如
+
+输出1000以内的自然数：
+
+select number from master..spt_values
+where type='P' and 
+number between 1 and 1000
+--master..spt_values表的type字段值为p的，对应，number字段的值是从1至255
+
+输出2008年至今以来的月份列表：
+
+create table Mon
+(
+ID int identity(1,1),
+Mon varchar(6)
+)
+GO
+
+DECLARE 
+@BeginMonth varchar(6),
+@EndMonth varchar(6)
+SELECT
+@BeginMonth='200801',
+@EndMonth='200906'
+
+INSERT Mon(Mon)
+SELECT
+CONVERT(VARCHAR(6),DATEADD(month,number,@BeginMonth+'01'),112)
+FROM 
+master..spt_values 
+WHERE 
+type='P' 
+and 
+DATEADD(month,number,@BeginMonth+'01')<=@EndMonth+'01'
+
+
+SELECT * FROM Mon
+
+DROP TABLE Mon
+
+---
+--
+--22222222222222222
+--
+--
+
+利用MASTER..SPT_VALUES提取两个日期之间的日期列表
+2009-11-03 23:47
+假设 table 中有一条数据： 
+Id DateStart DateEnd 
+1 2002-4-1    2009-9-10
+提取DateStart到DateEnd之间的年月列表
+
+实现方法：
+DECLARE @BDATE DATETIME,@EDATE DATETIME--声明两个日期变量存放DataStart和DataEnd。 
+SET @BDATE='2002-4-1'
+SET @EDATE='2009-9-10'
+--DATEADD(),第一个参数是判断取年、年月、年月日列表。Year——年，MONTH-年月，DAY年月日,再换成年，日时注意修改VARCHAR()的长度。
+SELECT CONVERT(VARCHAR(7),DATEADD(MONTH,NUMBER,@BDATE),120) FROM MASTER..SPT_VALUES WHERE TYPE='P'
+AND DATEADD(MONTH,NUMBER,@BDATE)<=@EDATE
+
+注：在使用SPT_VALUES方法来获取日期列表时，有一点需要注意，数量不能超过2048，因为NUMBER（TYPE='P'）的范围在0-2047。
+也可以使用这个表来获取0-2047之间的数字了。例如取1-1000之间的数字，就可以这么写：
+SELECT NUMBER FROM MASTER..SPT_VALUES WHERE NUMBER<1001 AND NUMBER>0 AND TYPE='P'
+
+ 
+
+2) 找出2句话中相同的汉字：
+
+declare @Lctext1 varchar(100),@Lctext2 varchar(100)
+set @Lctext1='我们都是来自五湖四海的朋友' 
+set @Lctext2='朋友多了路真的好走吗'
+
+SELECT SUBSTRING(@Lctext2,number,1) as value
+from master..spt_values
+where type='p' and number <=LEN(@Lctext2)and CHARINDEX(SUBSTRING(@Lctext2,number,1),@Lctext1)>0
+
+解释：master..spt_values表的type字段值为p的，对应，number字段的值是从1至255，
+
+则where条件中，会找到所有满足条件的number值，1行只有1个numbe值，故select的结果形式是：
+
+1
+
+2
+
+7
+
+ 
+
+3) 巧用master..spt_values表输出数字或者时间常量表
+2009年08月06日 星期四 上午 11:23
+sql开发中经常需要使用数字或者时间的常量表。
+
+比如，输出一年的月份表，输出1000以内的自然数等等。数量连续且不超过2048。那么使用master..spt_values表就会再也方便不过了。
+
+例如
+
+输出1000以内的自然数：
+
+select number from master..spt_values
+where type='P' and 
+number between 1 and 1000
+
+输出2008年至今以来的月份列表：
+
+create table Mon
+(
+ID int identity(1,1),
+Mon varchar(6)
+)
+GO
+
+DECLARE 
+@BeginMonth varchar(6),
+@EndMonth varchar(6)
+SELECT
+@BeginMonth='200801',
+@EndMonth='200906'
+
+INSERT Mon(Mon)
+SELECT
+CONVERT(VARCHAR(6),DATEADD(month,number,@BeginMonth+'01'),112)
+FROM 
+master..spt_values 
+WHERE 
+type='P' 
+and 
+DATEADD(month,number,@BeginMonth+'01')<=@EndMonth+'01'
+SELECT * FROM Mon
+
+DROP TABLE Mon
+

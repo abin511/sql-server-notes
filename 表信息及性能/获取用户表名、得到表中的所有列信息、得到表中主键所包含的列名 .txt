@@ -1,0 +1,30 @@
+1、获取用户表名：
+
+SELECT name FROM sysobjects WHERE type = 'U' AND sysstat = '83'
+
+注意：一般情况只需要type = 'U'，但有时候会有系统表混在其中（不知道什么原因），加上后面一句后就能删除这些系统表了
+
+2、得到表中的所有列信息（包含数据类型名）：
+
+SELECT syscolumns.name,systypes.name,syscolumns.isnullable,syscolumns.length FROM syscolumns, systypes WHERE syscolumns.xusertype = systypes.xusertype AND syscolumns.id = object_id('tableName')
+
+--查询列名在某个表
+  SELECT a.name,b.name,a.isnullable,a.length,a.id,c.name 
+  FROM syscolumns as a join  systypes as b on a.xusertype = b.xusertype
+  join sysobjects as c on a.id = c.id
+  and a.name='Cid'
+
+注意点：
+（1）这里为了重点突出某些重要内容，选取了其中几项信息输出。
+（2）syscolumns表中只含有数据类型编号，要获取完整的名字需要从systypes表中找，一般用户使用的数据类型用xusertype对应比较好，不会出现一对多的情况。
+（3）syscolumns.length得到的是物理内存的长度，所以nvarchar和varchar等类型在数据库中的显示是这个的一半。
+
+3、得到表中主键所包含的列名：
+
+SELECT syscolumns.name FROM syscolumns,sysobjects,sysindexes,sysindexkeys WHERE syscolumns.id = object_id('tablename') AND sysobjects.xtype = 'PK' AND sysobjects.parent_obj = syscolumns.id AND sysindexes.id = syscolumns.id AND sysobjects.name = sysindexes.name AND sysindexkeys.id = syscolumns.id AND sysindexkeys.indid = sysindexes.indid AND syscolumns.colid = sysindexkeys.colid
+
+注意：这是在4张系统表中寻找的，关系比较复杂，大致可以表示为：
+syscolumns中存有表中的列信息和表id，sysobjects表中存有主键名字（即PK_Table类似）和表id，sysindexes中存有主键名字和表id和index编号，sysindexkeys中存有表id和index编号和列编号，一项一项对应起来后就能找到列名了，呼～
+
+4、查询有外键的表
+exec 数据库名..sp_fkeys null,null,'数据库名','有外键的表'

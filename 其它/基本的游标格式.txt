@@ -1,0 +1,15 @@
+  --申明一个游标
+DECLARE Mycursor cursor	FOR select top 5 * FROM [TYStudio_Users].[dbo].[webpages_Roles]
+--打开一个游标	
+OPEN Mycursor
+--循环一个游标
+DECLARE @rid int,@rname nvarchar(2000)
+FETCH next from  Mycursor INTO @rid,@rname
+    WHILE @@FETCH_STATUS =0 BEGIN
+		print 'name'+@rname
+		FETCH next from  Mycursor INTO @rid,@rname
+	END	
+--关闭游标
+CLOSE Mycursor
+--释放资源
+DEALLOCATE MyCursor

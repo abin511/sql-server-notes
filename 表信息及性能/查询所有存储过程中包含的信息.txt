@@ -1,0 +1,37 @@
+1、查询所有存储过程中包含的信息
+select su.name, so.name, sc.text
+from sysobjects so, syscomments sc, sysusers su
+where xtype='P' and so.id=sc.id and so.uid=su.uid
+and  text like '%update dbo.MS_T_THEMES%'
+order by su.name, so.name, sc.colid 
+
+2、获取存储过程的修改时间和创建时间
+查询建立时间
+--表
+select * from sysobjects where id=object_id(N'表名') and xtype='U'  
+--表的结构   
+select * from syscolumns where id=object_id(N'表名')     
+--存储过程   
+select * from sysobjects where id=object_id(N'存储过程名') and xtype='P'  
+
+查询最后修改时间
+
+--存储过程
+select name,modify_date from sys.all_objects where type='P' order by modify_date desc
+--触发器
+select name,modify_date from sys.all_objects where type='TR' order by modify_date desc
+--表
+select * from sys.all_objects where type='u' order by modify_date desc
+
+3、查询sql语句中的排序规则（区分大小写，区分重音，区分假名类型）
+select * from ::fn_helpcollations() 
+例如：select 1 where '03BHL01001（上海）'='03BHL01001(上海)' collate Chinese_PRC_CI_AS_WS--区分全角半角
+select * from tablename where    column1 collate Chinese_PRC_CS_AS= 'Xxxx'
+select * from s where sn collate Chinese_PRC_CS_AS like 'L%' 
+
+CI     指定不区分大小写，CS     指定区分大小写。
+AI     指定不区分重音，AS     指定区分重音。  
+Omitted     指定不区分大小写，WS     指定区分大小写。
+
+
+

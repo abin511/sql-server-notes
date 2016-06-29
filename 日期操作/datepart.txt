@@ -1,0 +1,36 @@
+datepart 是将为其返回 integer 的 date（日期或时间值）的一部分
+
+           datepart  缩写形式
+ 
+[年]       year       yy,yyyy
+ 
+[季度]     quarter    qq,q
+ 
+[月]       month      mm, m
+
+[年中的日] dayofyear  dy,y
+
+[日]       day        dd,d
+ 
+[周]       week       wk,ww
+
+[星期]     weekday    dw
+ 
+[小时]     hour       hh
+
+[分钟]     minute     mi, n
+ 
+[秒]       second     ss, s
+ 
+[毫秒]     millisecond  ms
+ 
+[微妙]     microsecond  mcs
+
+[纳秒]     nanosecond   ns
+
+
+TZoffset     tz
+ 
+
+ISO_WEEK      isowk,isoww
+ 

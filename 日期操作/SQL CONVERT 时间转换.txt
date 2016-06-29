@@ -1,0 +1,117 @@
+﻿--获取数据库最大编号
+--字段要求 年2位 月2位 日2位 后面自增6位 表名 Num 字段名 num
+select Convert(varchar(100), GETDATE(), 12) + 
+case Convert(varchar(100), GETDATE(), 12)
+when left(max(num),6) --当最大时间等于当前时间
+then (
+case len(right(max(num),6)+1) 
+when 0 then '000000' 
+when 1 then '00000' 
+when 2 then '0000' 
+when 3 then '000' 
+when 4 then '00' 
+when 5 then '0' 
+else '' 
+end + cast(right(max(num),6)+1 as varchar(10))) 
+else  '000001' /*最大日期不是今天，今天日期 + 000001*/
+end 
+from Num 
+
+/**************************************************************************/
+select * from 表名 where Convert(varchar(100),日期字段,23)='2008-12-15' 
+
+Select CONVERT(varchar(100), GETDATE(), 0): 05 16 2006 10:57AM 
+Select CONVERT(varchar(100), GETDATE(), 1): 05/16/06 
+Select CONVERT(varchar(100), GETDATE(), 2): 06.05.16 
+Select CONVERT(varchar(100), GETDATE(), 3): 16/05/06 
+Select CONVERT(varchar(100), GETDATE(), 4): 16.05.06 
+Select CONVERT(varchar(100), GETDATE(), 5): 16-05-06 
+Select CONVERT(varchar(100), GETDATE(), 6): 16 05 06 
+Select CONVERT(varchar(100), GETDATE(), 7): 05 16, 06 
+Select CONVERT(varchar(100), GETDATE(), 8): 10:57:46 
+Select CONVERT(varchar(100), GETDATE(), 9): 05 16 2006 10:57:46:827AM 
+Select CONVERT(varchar(100), GETDATE(), 10): 05-16-06 
+Select CONVERT(varchar(100), GETDATE(), 11): 06/05/16 
+Select CONVERT(varchar(100), GETDATE(), 12): 060516 
+Select CONVERT(varchar(100), GETDATE(), 13): 16 05 2006 10:57:46:937 
+Select CONVERT(varchar(100), GETDATE(), 14): 10:57:46:967 
+Select CONVERT(varchar(100), GETDATE(), 20): 2006-05-16 10:57:47 
+Select CONVERT(varchar(100), GETDATE(), 21): 2006-05-16 10:57:47.157 
+Select CONVERT(varchar(100), GETDATE(), 22): 05/16/06 10:57:47 AM 
+Select CONVERT(varchar(100), GETDATE(), 23): 2006-05-16 
+Select CONVERT(varchar(100), GETDATE(), 24): 10:57:47 
+Select CONVERT(varchar(100), GETDATE(), 25): 2006-05-16 10:57:47.250 
+Select CONVERT(varchar(100), GETDATE(), 100): 05 16 2006 10:57AM 
+Select CONVERT(varchar(100), GETDATE(), 101): 05/16/2006 
+Select CONVERT(varchar(100), GETDATE(), 102): 2006.05.16 
+Select CONVERT(varchar(100), GETDATE(), 103): 16/05/2006 
+Select CONVERT(varchar(100), GETDATE(), 104): 16.05.2006 
+Select CONVERT(varchar(100), GETDATE(), 105): 16-05-2006 
+Select CONVERT(varchar(100), GETDATE(), 106): 16 05 2006 
+Select CONVERT(varchar(100), GETDATE(), 107): 05 16, 2006 
+Select CONVERT(varchar(100), GETDATE(), 108): 10:57:49 
+Select CONVERT(varchar(100), GETDATE(), 109): 05 16 2006 10:57:49:437AM 
+Select CONVERT(varchar(100), GETDATE(), 110): 05-16-2006 
+Select CONVERT(varchar(100), GETDATE(), 111): 2006/05/16 
+Select CONVERT(varchar(100), GETDATE(), 112): 20060516 
+Select CONVERT(varchar(100), GETDATE(), 113): 16 05 2006 10:57:49:513 
+Select CONVERT(varchar(100), GETDATE(), 114): 10:57:49:547 
+Select CONVERT(varchar(100), GETDATE(), 120): 2006-05-16 10:57:49 
+Select CONVERT(varchar(100), GETDATE(), 121): 2006-05-16 10:57:49.700 
+Select CONVERT(varchar(100), GETDATE(), 126): 2006-05-16T10:57:49.827 
+Select CONVERT(varchar(100), GETDATE(), 130): 18 ???? ?????? 1427 10:57:49:907AM 
+Select CONVERT(varchar(100), GETDATE(), 131): 18/04/1427 10:57:49:920AM 
+
+select   convert(char(10),getdate(),120)           '短时间 
+select   convert(char(8),getdate(),108)           'hh:mm:ss     
+select   convert(char(15),getdate(),114)           'hh:mm:ss:MS 
+
+
+
+/*******************************************************************/
+select   getdate()   as   日期,case   month(getdate())   
+  when   11   then   '十一'   
+  when   12   then   '十二'   
+  else   substring('一二三四五六七八九十',   month(getdate()),1)   
+  end+'月'   as   月份
+
+/********************************************************************/
+--35转换成00:01:05 
+--调用方法SELECT DBO.StatDate(75) 
+ALTER function StatDate(@STR int)  
+returns varchar(50)  
+begin  
+declare @DTSTR nvarchar(255)  
+set @DTSTR = Right(100 + @STR / 3600,2) + ':' + Right(100 + @STR / 60,2) + ':' + Right(100 + @STR % 60,2)  
+return cast(@DTSTR as VARCHAR)  
+end
+-------------------
+--20090210170328转换成2009-02-10 17:03:28  
+create function ConvertDate(@STR nvarchar(255))  
+returns datetime  
+begin  
+declare @DTSTR nvarchar(255)  
+set @DTSTR = left(@STR,4)+'-'+SUBSTRING (@STR,5 ,2)+'-'+SUBSTRING (@STR,7,2)+' '  
++SUBSTRING (@STR,9,2)+':'+SUBSTRING (@STR,11,2)+':'+right(@STR,2)  
+return cast(@DTSTR as datetime)  
+end
+/********************************************************************/
+--20090210170328转换成2009-02-10 17:03:28 
+declare @str varchar(14)
+set @str='20080210182031'
+
+select cast(left(@str,8) as datetime)+stuff(stuff(right(@str,6),3,0,':'),6,0,':')
+
+/***循环一个月，获取某个月的天数************************************************/
+DECLARE @i INT
+SET @i = 1
+DECLARE @T TABLE(DatNo NVARCHAR(20))
+DECLARE @D INT
+SET @D = DATEDIFF(DAY,'2008-12-12',DATEADD(m,1,'2008-12-12'))
+WHILE @i <= @D
+BEGIN
+	INSERT INTO @T VALUES(@i)
+	SET @i = @i + 1
+END
+
+SELECT * FROM @T  

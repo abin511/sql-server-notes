@@ -1,0 +1,30 @@
+select CAST(UserID AS varchar) + ',',UserName + '',';' from @TempTable FOR XML PATH('')
+生成结果
+
+1,a;2,b;
+
+大家现在明白了吧，可以通过控制参数来生成自己想要的结果，例如：
+
+select '{' + CAST(UserID AS varchar) + ',','"' +UserName + '"','}' from @TempTable FOR XML PATH('')
+生成结果
+
+{1,"a"}{2,"b"}
+
+--------------------------------------------------------------------------------
+
+DECLARE @T1 table(UserID int , UserName nvarchar(50),CityName nvarchar(50));
+insert into @T1 (UserID,UserName,CityName) values (1,'张三','上海')
+insert into @T1 (UserID,UserName,CityName) values (2,'李四','北京')
+insert into @T1 (UserID,UserName,CityName) values (3,'王五','上海')
+insert into @T1 (UserID,UserName,CityName) values (4,'陈六','北京')
+insert into @T1 (UserID,UserName,CityName) values (5,'田七','上海')
+
+select * from @t1
+select UserName+',' from @t1 for xml path('')
+
+SELECT B.CityName,LEFT(UserList,LEN(UserList)-1) FROM (
+SELECT CityName,
+(SELECT UserName+',' FROM @T1 WHERE CityName=A.CityName FOR XML PATH('')) AS UserList
+FROM @T1 A
+GROUP BY CityName
+) B

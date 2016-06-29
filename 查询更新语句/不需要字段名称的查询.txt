@@ -1,0 +1,13 @@
+--不提供字段名称，根据序号查询数据
+declare @colName nvarchar(200),@sql nvarchar(2000)
+select @colName = isnull(@colName+',','')+[name],@sql =' select ' 
+from syscolumns where syscolumns.id = object_id('Table_DEMAND') and colid IN( 2,3,4)
+set @sql =@sql + @colName +' from Table_DEMAND '
+exec (@sql)
+--查询排除字段外的所有字段
+declare @sql varchar(8000)
+select @sql=''
+select @sql=@sql+','+[name] from 
+(select [name] from syscolumns where object_id(N'[Table_DEMAND]')=[id] and [name] not in ('pkid','tel')) A
+set @sql='select '+stuff(@sql,1,1,'')+' from [Table_DEMAND]'
+exec (@sql)

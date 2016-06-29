@@ -1,0 +1,60 @@
+A表
+id  name
+1    张三
+2    李四
+3    王二
+
+B表
+ID    AID   name
+1       1,2     0001
+2       1,3     0003
+3       2,3     0005
+
+B表的AID关联A表的ID ,AID是vchart类型 
+我现在要查询B表的所有列表，如下
+ID  AID            NAME
+1   张三,李四  0001
+2   张三,王二  0003
+3   李四,王二  0005
+
+select b1.id,b1.name,(SELECT NAME+',' FROM A1 WHERE CHARINDEX( CAST(A1.ID AS VARCHAR(10)) + ',',CAST(B1.AID AS VARCHAR(10))+',' ) > 0 
+FOR XML path('')) from B1
+
+
+
+/**************************************************/
+create table aTab (
+aId int,
+aName varchar(20)
+)
+
+insert into aTab (aId, aName) values (1,'数学')
+go
+insert into aTab (aId, aName) values (2,'语文')
+go
+create table bTab (
+bId int,
+aId int,
+bFz varchar(20)
+)
+
+insert into bTab (bId, aId, bFz) values (1,1,'张三')
+go
+insert into bTab (bId, aId, bFz) values (1,1,'李四')
+go
+insert into bTab (bId, aId, bFz) values (1,2,'张三')
+go
+insert into bTab (bId, aId, bFz) values (1,2,'李四')
+go
+
+
+SELECT c.*,b.result FROM
+(  
+	SELECT DISTINCT aid FROM bTab 
+)A
+OUTER APPLY
+(
+    SELECT (SELECT bFz +',' FROM bTab N WHERE aid = A.aid FOR XML path('')) as [result]
+)b
+
+join aTab as c on c.aId=a.aId

@@ -1,0 +1,33 @@
+--随机取10条数据
+SELECT TOP 10 *  FROM TABLE ORDER BY newid()
+
+---随机匹配数据
+SELECT '星期' + CAST(ROW_NUMBER() OVER( ORDER BY NEWID()) AS CHAR(1)) 日期, 
+ WOMEN.NAME
+ FROM MASTER..SPT_VALUES AS WK
+ JOIN(SELECT 1 AS NUM,'凤姐' AS NAME UNION SELECT 2,'芙蓉' 
+ UNION SELECT 3,'春哥' UNION SELECT 4,'曾哥'
+UNION SELECT 5,'伪娘' UNION SELECT 6,'黄花姐' 
+UNION SELECT 7,'双刀哥'
+ ) AS WOMEN
+ ON WK.NUMBER = WOMEN.NUM
+ WHERE [TYPE]='P' AND LOW=1 AND NUMBER > 0
+
+
+--本月1号到今天
+declare @sdate date set @sdate = cast(convert(nvarchar(7),getdate(),21)+'-01' as date)
+declare @edate date set @edate = getdate()
+select dateadd(dd,num,@sdate) AS D from ( SELECT number as num FROM MASTER..SPT_VALUES WHERE [TYPE]='P' AND LOW <= 4) a
+where dateadd(dd,num,@sdate) <=@edate 
+--指定范围，随机取数字
+declare @begin int set @begin =0
+declare @end int set @end = 10
+select cast(floor(rand()*(@end + 1 -@begin ))+@begin as int) as randNumber
+---从字符串中取随机数
+declare @str varchar(100)
+set @str='1,3,6,9,10,17'
+select
+substring(@str,number,charindex(',',@str+',',number)-number)
+from master..spt_values
+where type='P' and charindex(',',','+@str,number)=number
+order by newid()

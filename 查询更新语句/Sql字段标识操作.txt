@@ -1,0 +1,28 @@
+1:取得上次插入的ID最大值 
+SCOPE_IDENTITY() --局部变量,@@IDENTITY相当于全局变量
+
+2:重置当前标识值
+
+A. 如有必要，重置当前标识值 
+下例在必要的情况下重置 jobs 表的当前标识值。 
+
+USE pubs 
+GO 
+DBCC CHECKIDENT (jobs) 
+GO 
+
+B. 报告当前标识值 
+下例报告 jobs 表中的当前标识值；如果该标识值不正确，并不对其进行更正。 
+
+USE pubs 
+GO 
+DBCC CHECKIDENT (jobs, NORESEED) 
+GO 
+
+C. 强制当前标识值为 30 
+下例强制 jobs 表中的当前标识值为 30。 
+
+USE pubs 
+GO 
+DBCC CHECKIDENT (jobs, RESEED, 30) 
+GO

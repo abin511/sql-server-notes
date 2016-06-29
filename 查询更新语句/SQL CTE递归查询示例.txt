@@ -1,0 +1,547 @@
+SQL 递归查询示例：
+ 
+ 
+create table #EnterPrise 
+(
+  Department nvarchar(50),--部门名称
+  ParentDept nvarchar(50),--上级部门
+  DepartManage nvarchar(30)--部门经理
+)
+insert into #EnterPrise select '技术部','总经办','Tom'
+insert into #EnterPrise select '商务部','总经办','Jeffry'
+insert into #EnterPrise select '商务一部','商务部','ViVi'
+insert into #EnterPrise select '商务二部','商务部','Peter'
+insert into #EnterPrise select '程序组','技术部','GiGi'
+insert into #EnterPrise select '设计组','技术部','yoyo'
+insert into #EnterPrise select '专项组','程序组','Yue'
+insert into #EnterPrise select '总经办','','Boss'
+--查询部门经理是Tom的下面的部门名称
+;with hgo as
+(
+   select *,0 as rank from #EnterPrise where DepartManage='Tom'
+   union all
+   select h.*,h1.rank+1 from #EnterPrise h join hgo h1 on h.ParentDept=h1.Department
+)
+select * from hgo
+/*
+Department           ParentDept                DepartManage      rank
+--------------- -------------------- ----------------------- -----------
+技术部               总经办                    Tom               0
+程序组               技术部                    GiGi              1
+设计组               技术部                    yoyo              1
+专项组               程序组                    Yue               2
+*/
+--查询部门经理是GiGi的上级部门名称
+;with hgo as
+(
+   select *,0 as rank from #EnterPrise where DepartManage='GiGi'
+   union all
+   select h.*,h1.rank+1 from #EnterPrise h join hgo h1 on h.Department=h1.ParentDept
+)
+select * from hgo
+/*
+Department               ParentDept          DepartManage    rank
+-------------------- ----------------------  -----------  -----------
+程序组                   技术部                 GiGi           0
+技术部                   总经办                 Tom            1
+总经办                                          Boss           2
+*/
+--===========================================================================================================
+create table #tt
+(id int,
+parentid int,
+name varchar(20))
+insert #tt
+select 1,0,'上海市'union all
+select 2,1,'虹口区'union all
+select 3,1,'徐汇区'union all
+select 4,1,'浦东新区'union all
+select 5,2,'江湾镇'union all
+select 6,2,'虹口足球场'union all
+select 7,5,'吉买盛'union all
+select 8,5,'易卜莲花'union all
+select 9,5,'农工商'union all
+select 10,6,'吉买盛'
+ 
+with cte as(
+select *,0 as levl from #tt where id=2
+union all
+select a.*,b.levl+1 from #tt a,cte b where a.parentid=b.id
+)
+select * from cte where levl>0
+ 
+ --        id    parentid name                        levl
+----------- ----------- -------------------- -----------
+          5           2 江湾镇                            1
+          6           2 虹口足球场                          1
+         10           6 吉买盛                            2
+          7           5 吉买盛                            2
+          8           5 易卜莲花                           2
+          9           5 农工商                            2
+ 
+==============================================================================================
+if not object_id('Tab') is null
+    drop table Tab
+Go
+Create table Tab([Id] int,[ParentId] int,[Name] nvarchar(50))
+Insert Tab
+select 1,0,N'上海市' union all
+select 2,1,N'虹口区' union all
+select 3,1,N'徐汇区' union all
+select 4,1,N'浦东新区' union all
+select 5,2,N'江湾镇' union all
+select 6,2,N'虹口足球场' union all
+select 7,5,N'吉买盛' union all
+select 8,5,N'易卜莲花' union all
+select 9,5,N'农工商' union all
+select 10,6,N'吉买盛'
+Go
+ 
+IF OBJECT_ID('P_GetParentId') is not null drop proc P_GetParentId
+go    
+Create proc P_GetParentId
+(
+  @ParentId int
+)
+as
+begin
+declare @Del table(ID int,[ParentId] int)
+insert @Del select ID,[ParentId] from Tab a  where exists(select 1 from Tab where a.Id = 2)
+ 
+while  @@rowcount>0
+   begin
+    insert @Del
+    select a.ID,a.[ParentId] 
+    from Tab a  
+        inner join @Del b on b.ID=a.[ParentId]
+    where not exists(select 1 from @Del where ID=a.ID)
+    end
+    select * from @Del
+end
+gO
+--TEST
+EXEC P_GetParentId 2
+--结果
+--
+/*
+ID          ParentId
+----------- -----------
+2           1
+5           2
+6           2
+7           5
+8           5
+9           5
+10          6
+*/
+--============================================================================================
+ --SQL code
+/*
+标题：SQL SERVER 2000中查询指定节点及其所有子节点的函数(表格形式显示)
+作者：爱新觉罗·毓华(十八年风雨,守得冰山雪莲花开) 
+时间：2008-05-12
+地点：广东深圳
+*/
+ 
+create table tb(id varchar(3) , pid varchar(3) , name varchar(10))
+insert into tb values('001' , null  , '广东省')
+insert into tb values('002' , '001' , '广州市')
+insert into tb values('003' , '001' , '深圳市')
+insert into tb values('004' , '002' , '天河区')
+insert into tb values('005' , '003' , '罗湖区')
+insert into tb values('006' , '003' , '福田区')
+insert into tb values('007' , '003' , '宝安区')
+insert into tb values('008' , '007' , '西乡镇')
+insert into tb values('009' , '007' , '龙华镇')
+insert into tb values('010' , '007' , '松岗镇')
+go
+ 
+--查询指定节点及其所有子节点的函数
+create function f_cid(@ID varchar(3)) returns @t_level table(id varchar(3) , level int)
+as
+begin
+  declare @level int
+  set @level = 1
+  insert into @t_level select @id , @level
+  while @@ROWCOUNT > 0
+  begin
+    set @level = @level + 1
+    insert into @t_level select a.id , @level
+    from tb a , @t_Level b
+    where a.pid = b.id and b.level = @level - 1
+  end
+  return
+end
+go
+ 
+--调用函数查询001(广东省)及其所有子节点
+select a.* from tb a , f_cid('001') b where a.id = b.id order by a.id
+/*
+id   pid  name       
+---- ---- ---------- 
+001  NULL 广东省
+002  001  广州市
+003  001  深圳市
+004  002  天河区
+005  003  罗湖区
+006  003  福田区
+007  003  宝安区
+008  007  西乡镇
+009  007  龙华镇
+010  007  松岗镇
+ 
+（所影响的行数为 10 行）
+*/
+ 
+--调用函数查询002(广州市)及其所有子节点
+select a.* from tb a , f_cid('002') b where a.id = b.id order by a.id
+/*
+id   pid  name       
+---- ---- ---------- 
+002  001  广州市
+004  002  天河区
+ 
+（所影响的行数为 2 行）
+*/
+ 
+--调用函数查询003(深圳市)及其所有子节点
+select a.* from tb a , f_cid('003') b where a.id = b.id order by a.id
+/*
+id   pid  name       
+---- ---- ---------- 
+003  001  深圳市
+005  003  罗湖区
+006  003  福田区
+007  003  宝安区
+008  007  西乡镇
+009  007  龙华镇
+010  007  松岗镇
+ 
+（所影响的行数为 7 行）
+*/
+ 
+drop table tb
+drop function f_cid
+ 
+/*
+SQL code
+@@ROWCOUNT：返回受上一语句影响的行数。
+返回类型：integer。
+注释：任何不返回行的语句将这一变量设置为 0 ，如 IF 语句。
+示例：下面的示例执行 UPDATE 语句并用 @@ROWCOUNT 来检测是否有发生更改的行。
+*/
+ 
+UPDATE authors SET au_lname = 'Jones' WHERE au_id = '999-888-7777'
+IF @@ROWCOUNT = 0
+   print 'Warning: No rows were updated'
+ 
+/*
+结果：
+ 
+(所影响的行数为 0 行)
+Warning: No rows were updated
+ 
+SQL code
+*/
+/*
+标题：SQL SERVER 2005中查询指定节点及其所有子节点的函数(表格形式显示)
+作者：爱新觉罗·毓华(十八年风雨,守得冰山雪莲花开) 
+时间：2010-02-02
+地点：新疆乌鲁木齐
+*/
+ 
+create table tb(id varchar(3) , pid varchar(3) , name nvarchar(10))
+insert into tb values('001' , null  , N'广东省')
+insert into tb values('002' , '001' , N'广州市')
+insert into tb values('003' , '001' , N'深圳市')
+insert into tb values('004' , '002' , N'天河区')
+insert into tb values('005' , '003' , N'罗湖区')
+insert into tb values('006' , '003' , N'福田区')
+insert into tb values('007' , '003' , N'宝安区')
+insert into tb values('008' , '007' , N'西乡镇')
+insert into tb values('009' , '007' , N'龙华镇')
+insert into tb values('010' , '007' , N'松岗镇')
+go
+ 
+DECLARE @ID VARCHAR(3)
+ 
+--查询ID = '001'的所有子节点
+SET @ID = '001'
+;WITH T AS
+(
+  SELECT ID , PID , NAME 
+  FROM TB
+  WHERE ID = @ID
+  UNION ALL
+  SELECT A.ID , A.PID , A.NAME 
+  FROM TB AS A JOIN T AS B ON A.PID = B.ID
+)
+SELECT * FROM T ORDER BY ID
+/*
+ID   PID  NAME
+---- ---- ----------
+001  NULL 广东省
+002  001  广州市
+003  001  深圳市
+004  002  天河区
+005  003  罗湖区
+006  003  福田区
+007  003  宝安区
+008  007  西乡镇
+009  007  龙华镇
+010  007  松岗镇
+ 
+(10 行受影响)
+*/
+ 
+--查询ID = '002'的所有子节点
+SET @ID = '002'
+;WITH T AS
+(
+  SELECT ID , PID , NAME 
+  FROM TB
+  WHERE ID = @ID
+  UNION ALL
+  SELECT A.ID , A.PID , A.NAME 
+  FROM TB AS A JOIN T AS B ON A.PID = B.ID
+)
+SELECT * FROM T ORDER BY ID
+/*
+ID   PID  NAME
+---- ---- ----------
+002  001  广州市
+004  002  天河区
+ 
+(2 行受影响)
+*/
+ 
+--查询ID = '003'的所有子节点
+SET @ID = '003'
+;WITH T AS
+(
+  SELECT ID , PID , NAME 
+  FROM TB
+  WHERE ID = @ID
+  UNION ALL
+  SELECT A.ID , A.PID , A.NAME 
+  FROM TB AS A JOIN T AS B ON A.PID = B.ID
+)
+SELECT * FROM T ORDER BY ID
+/*
+ID   PID  NAME
+---- ---- ----------
+003  001  深圳市
+005  003  罗湖区
+006  003  福田区
+007  003  宝安区
+008  007  西乡镇
+009  007  龙华镇
+010  007  松岗镇
+ 
+(7 行受影响)
+*/
+ 
+drop table tb
+ 
+--注：除ID值不一样外，三个SQL语句是一样的。
+--===============================================================================
+declare @t table(id int identity(1,1),parentid int,name varchar(10))
+insert @t(parentid,name) select 0,'上海市'
+union all select 1,'虹口区'
+union all select 1,'徐汇区'
+union all select 1,'浦东新区'
+union all select 2,'江湾镇'
+union all select 2,'虹口足球场'
+union all select 5,'吉买盛'
+union all select 5,'易卜莲花'
+union all select 5,'农工商'
+union all select 6,'吉买盛'
+ 
+select * from @t
+ 
+;with tb as
+(
+    select * from @t
+    where id=2
+    union all
+    select a.* from @t a join tb b on a.parentid=b.id
+)
+ 
+select * from tb
+order by id
+/*
+ 
+(10 行受影响)
+id          parentid    name
+----------- ----------- ----------
+1           0           上海市
+2           1           虹口区
+3           1           徐汇区
+4           1           浦东新区
+5           2           江湾镇
+6           2           虹口足球场
+7           5           吉买盛
+8           5           易卜莲花
+9           5           农工商
+10          6           吉买盛
+ 
+(10 行受影响)
+ 
+id          parentid    name
+----------- ----------- ----------
+2           1           虹口区
+5           2           江湾镇
+6           2           虹口足球场
+7           5           吉买盛
+8           5           易卜莲花
+9           5           农工商
+10          6           吉买盛
+ 
+(7 行受影响)
+*/
+--============================================================================
+drop   table   tb 
+go 
+create   table   tb(code   int,su_code   int) 
+insert   into   tb(code,su_code)   values(1,null) 
+insert   into   tb(code,su_code)   values(11,1) 
+insert   into   tb(code,su_code)   values(12,1) 
+insert   into   tb(code,su_code)   values(111,11) 
+insert   into   tb(code,su_code)   values(112,11) 
+insert   into   tb(code,su_code)   values(121,12) 
+insert   into   tb(code,su_code)   values(122,12) 
+insert   into   tb(code,su_code)   values(1221,122) 
+
+go 
+
+create   table   #stack(item   int,levels   int) 
+delete   from   #stack 
+set   nocount   on 
+go 
+declare   @top   int 
+declare   @level   int 
+declare   @line   varchar(128) 
+select   @top=code   from   tb   where   su_code   is   null 
+insert   into   #stack   values(@top,1) 
+select   @level=1 
+while   @level> 0 
+begin 
+    if   exists(select   *   from   #stack   where   levels=@level) 
+    begin 
+        select   @top=item   from   #stack   where   levels=@level 
+        select   @line=space(@level-1)+convert(varchar,@top) 
+        print   @line 
+        delete   from   #stack   where   levels=@level   and   item=@top 
+        insert   into   #stack   select   code,@level+1   from   tb   where   su_code=@top 
+        if   @@rowcount> 0   
+                  select   @level=@level+1 
+    end 
+else 
+    select   @level=@level-1 
+end 
+--===============================================================================
+--函数
+-->Title:Generating test data
+-->Author:wufeng4552
+-->Date :2009-09-30 08:52:38
+set nocount on
+if object_id('tb','U')is not null drop table tb
+go
+create table tb(ID int, ParentID int)
+insert into tb select 1,0  
+insert into tb select 2,1  
+insert into tb select 3,1  
+insert into tb select 4,2  
+insert into tb select 5,3  
+insert into tb select 6,5  
+insert into tb select 7,6
+-->Title:查找指定節點下的子結點
+if object_id('Uf_GetChildID')is not null drop function Uf_GetChildID
+go
+create function Uf_GetChildID(@ParentID int)
+returns @t table(ID int)
+as
+begin
+   insert @t select ID from tb where ParentID=@ParentID
+   while @@rowcount<>0
+   begin
+      insert @t select a.ID from tb a inner join @t b
+      on a.ParentID=b.id and 
+      not exists(select 1 from @t where id=a.id)
+   end 
+return
+end
+go
+select * from dbo.Uf_GetChildID(5)
+/*
+ID
+-----------
+6
+7
+*/
+-->Title:查找指定節點的所有父結點
+if object_id('Uf_GetParentID')is not null drop function Uf_GetParentID
+go
+create function Uf_GetParentID(@ID int)
+returns @t table(ParentID int)
+as
+begin
+   insert @t select ParentID from tb where ID=@ID
+   while @@rowcount!=0
+   begin
+     insert @t select a.ParentID from tb a inner join @t b
+       on a.id=b.ParentID and 
+       not exists(select 1 from @t where ParentID=a.ParentID)
+   end
+  return
+end
+go
+select * from dbo.Uf_GetParentID(2)
+/*
+ParentID
+-----------
+1
+0
+*/
+--==========================================================================================
+--测试数据
+DECLARE @t TABLE(ID char(3),PID char(3),Name nvarchar(10))
+INSERT @t SELECT '001',NULL ,'山东省'
+UNION ALL SELECT '002','001','烟台市'
+UNION ALL SELECT '004','002','招远市'
+UNION ALL SELECT '003','001','青岛市'
+UNION ALL SELECT '005',NULL ,'四会市'
+UNION ALL SELECT '006','005','清远市'
+UNION ALL SELECT '007','006','小分市'
+ 
+--深度排序显示处理
+--生成每个节点的编码累计(相同当单编号法的编码)
+DECLARE @t_Level TABLE(ID char(3),Level int,Sort varchar(8000))
+DECLARE @Level int
+SET @Level=0
+INSERT @t_Level SELECT ID,@Level,ID
+FROM @t
+WHERE PID IS NULL
+WHILE @@ROWCOUNT>0
+BEGIN
+    SET @Level=@Level+1
+    INSERT @t_Level SELECT a.ID,@Level,b.Sort+a.ID
+    FROM @t a,@t_Level b
+    WHERE a.PID=b.ID
+        AND b.Level=@Level-1
+END
+ 
+--显示结果
+SELECT SPACE(b.Level*2)+'|--'+a.Name
+FROM @t a,@t_Level b
+WHERE a.ID=b.ID
+ORDER BY b.Sort
+/*--结果
+|--山东省
+  |--烟台市
+    |--招远市
+  |--青岛市
+|--四会市
+  |--清远市
+    |--小分市
+--*/

@@ -1,0 +1,34 @@
+CREATE FUNCTION DaysInMonth ( @date datetime ) Returns int
+AS
+BEGIN
+ RETURN Day(dateadd(mi,-3,DATEADD(m, DATEDIFF(m,0,@date)+1,0)))
+END
+
+调用示例：
+
+select dbo.DaysInMonth ('2006-02-03') 
+
+ 
+
+(2)计算哪一天是本周的星期一 
+
+SELECT DATEADD(week, DATEDIFF(week,'1900-01-01',getdate()), '1900-01-01')  --返回2006-11-06 00:00:00.000
+或
+SELECT DATEADD(week, DATEDIFF(week,0,getdate()),0)      
+
+(3)当前季度的第一天 
+
+SELECT DATEADD(quarter, DATEDIFF(quarter,0,getdate()), 0)—返回2006-10-01 00:00:00.000 
+
+(4)一个季度多少天 
+
+declare @m tinyint,@time smalldatetime 
+
+select @m=month(getdate()) 
+select @m=case when @m between 1 and 3 then 1 
+                       when @m between 4 and 6 then 4 
+                       when @m between 7  and 9 then 7 
+                       else 10 end 
+
+select @time=datename(year,getdate())+'-'+convert(varchar(10),@m)+'-01' 
+select datediff(day,@time,dateadd(mm,3,@time)) —返回92 

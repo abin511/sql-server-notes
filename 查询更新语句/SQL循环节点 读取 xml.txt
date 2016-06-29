@@ -1,0 +1,36 @@
+SQL如何循环节点 读取 xml
+一个XML文件 
+<Buy   BuyTime= "2007-2-18 "> 
+  <BuyDetail   BuyDetailID=1   BuyDetailName= "物品1 "   /> 
+  <BuyDetail   BuyDetailID=2   BuyDetailName= "物品1 "   /> 
+</Buy> 
+
+请问如何实现一条一条子节点遍历   Buy/BuyDetail的属性 
+然后逐行更新   BuyDetail表中   BuyDetailID等于XML相对应的BuyDetailID属性的记录呢?
+
+------解决方案--------------------------------------------------------
+declare @a int 
+declare @doc1 nvarchar(1000) 
+set @doc1= ' ' 
+set @doc1= ' 
+<Buy BuyTime= "2007-2-18 "> 
+<BuyDetail BuyDetailID= "1 " BuyDetailName= "物品1 " /> 
+<BuyDetail BuyDetailID= "2 " BuyDetailName= "物品1 " /> 
+</Buy> 
+' 
+
+exec sp_xml_preparedocument @a OUTPUT, @doc1 
+
+SELECT * into #a 
+FROM OPENXML (@a, 'Buy/BuyDetail ',1) 
+WITH (BuyDetailID varchar(10), 
+BuyDetailName varchar(20)) 
+
+-- create table BuyDetail( BuyDetailID int,BuyDetailName varchar(100)) 
+-- insert into BuyDetail select 1, '222 ' 
+-- union all select 2, 'ccc ' 
+
+update BuyDetail set BuyDetailName=a.BuyDetailName from #a as a,BuyDetail as b 
+where a.BuyDetailID=b.BuyDetailID 
+
+drop table #a 

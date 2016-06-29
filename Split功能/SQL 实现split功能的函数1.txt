@@ -1,0 +1,85 @@
+create function f_split(@SourceSql varchar(8000),@StrSeprate varchar(10))
+returns @temp table(a varchar(100))
+--实现split功能 的函数
+--date    :2003-10-14
+as 
+begin
+    declare @i int
+    set @SourceSql=rtrim(ltrim(@SourceSql))
+    set @i=charindex(@StrSeprate,@SourceSql)
+    while @i>=1
+    begin
+        insert @temp values(left(@SourceSql,@i-1))
+        set @SourceSql=substring(@SourceSql,@i+1,len(@SourceSql)-@i)
+        set @i=charindex(@StrSeprate,@SourceSql)
+    end
+    if @SourceSql<>'' 
+       insert @temp values(@SourceSql)
+    return 
+end
+
+
+/*
+姓名:ygl
+作用:对字符串进行拆分
+方法：SELECT * from StrSplit(@str,',')
+*/
+CREATE FUNCTION StrSplit
+(
+@split_string VARCHAR(MAX), --要进行分解的字符串
+@tag_string VARCHAR(10) --分解标志
+)
+RETURNS 
+@split_table TABLE 
+(
+split_value VARCHAR(200)
+)
+AS
+BEGIN
+DECLARE @temp_string VARCHAR(MAX)
+DECLARE @start_index INT
+DECLARE @end_index INT
+
+WHILE 1=1
+BEGIN 
+  SET @start_index = 0
+  SELECT @end_index = CHARINDEX(@tag_string,@split_string,@start_index)
+  IF @end_index <> 0
+  BEGIN 
+   SET @temp_string = SUBSTRING(@split_string,@start_index,@end_index)
+   IF @temp_string IS NOT NULL AND @temp_string <> ''
+    INSERT INTO @split_table(split_value) VALUES(@temp_string)
+   SET @start_index = @end_index + 1
+   SET @split_string = SUBSTRING(@split_string,@start_index,LEN(@split_string))
+  END 
+  ELSE 
+  BEGIN 
+    IF @split_string IS NOT NULL AND @split_string <> ''
+       INSERT INTO @split_table(split_value) VALUES(@split_string)
+   BREAK 
+  END 
+END
+RETURN
+END
+
+/*************************************************************/
+IF OBJECT_ID('DBO.SPLIT_STR') IS NOT NULL
+DROP FUNCTION DBO.SPLIT_STR
+GO
+CREATE FUNCTION DBO.SPLIT_STR(
+@S varchar(8000),      --包含多个数据项的字符串
+@INDEX int,             --要获取的数据项的位置
+@SPLIT varchar(10)     --数据分隔符
+)
+RETURNS VARCHAR(100)
+AS
+BEGIN
+IF @S IS NULL RETURN(NULL)
+DECLARE @SPLITLEN int
+SELECT @SPLITLEN=LEN(@SPLIT+'A')-2
+WHILE @INDEX>1 AND CHARINDEX(@SPLIT,@S+@SPLIT)>0
+SELECT @INDEX=@INDEX-1,@S=STUFF(@S,1,CHARINDEX(@SPLIT,@S+@SPLIT)+@SPLITLEN,'')
+RETURN(ISNULL(LEFT(@S,CHARINDEX(@SPLIT,@S+@SPLIT)-1),''))
+END
+GO
+PRINT DBO.SPLIT_STR('AA|BB|CC',2,'|')

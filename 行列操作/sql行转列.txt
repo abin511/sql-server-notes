@@ -1,0 +1,93 @@
+问题描述：
+无论是在sql 2000，还是在 sql 2005 中,都没有提供字符串的聚合函数，
+  所以，当我们在处理下列要求时，会比较麻烦：
+有表tb, 如下：
+id    value
+----- ------
+1     aa
+1     bb
+2     aaa
+2     bbb
+2     ccc
+需要得到结果：
+id     values
+------ -----------
+1      aa,bb
+2      aaa,bbb,ccc
+即， group by id, 求 value 的和（字符串相加）
+
+1. 旧的解决方法
+
+-- 1. 创建处理函数
+CREATE FUNCTION dbo.f_str(@id int)
+RETURNS varchar(8000)
+AS
+BEGIN
+    DECLARE @r varchar(8000)
+    SET @r = ''
+    SELECT @r = @r + ',' + value
+    FROM tb
+    WHERE id=@id
+    RETURN STUFF(@r, 1, 1, '')
+END
+GO
+-- 调用函数
+
+SELECt id, values=dbo.f_str(id) 
+FROM tb 
+GROUP BY id
+
+-- 2. 新的解决方法(适用于2005及以后版本)
+-- 示例数据
+DECLARE @t TABLE(id int, value varchar(10))
+INSERT @t SELECT 1, 'aa'
+UNION ALL SELECT 1, 'bb'
+UNION ALL SELECT 2, 'aaa'
+UNION ALL SELECT 2, 'bbb'
+UNION ALL SELECT 2, 'ccc'
+
+-- 查询处理
+SELECT *
+FROM(
+    SELECT DISTINCT 
+        id
+    FROM @t
+)A
+OUTER APPLY(
+    SELECT 
+        [result]= STUFF(REPLACE(REPLACE(
+            (
+                SELECT value as x FROM @t N
+                WHERE id = A.id
+                FOR XML AUTO
+            ), '<N x="', ','), '"/>', ''), 1, 1, '')
+)N
+
+/*--结果
+id          result
+----------- ----------------
+1           aa,bb
+2           aaa,bbb,ccc
+(2 行受影响)
+--*/
+
+
+
+------------------------------------------------------
+declare @t table(name varchar(10),test1 varchar(10),test2 varchar(10))
+insert into @t values('kong','a','1')
+insert into @t values('kong','b','2')
+insert into @t values('kong','c','3')
+insert into @t values('yang','a','1')
+insert into @t values('yang','b','2')
+insert into @t values('yang','c','3')
+
+SELECT * FROM
+( SELECT DISTINCT name FROM @t
+)A
+OUTER APPLY(
+SELECT zuhe= STUFF(REPLACE(REPLACE(
+(
+	SELECT '[' + test1+','+test2 + ']' as x FROM @t N
+            WHERE name = A.name FOR XML AUTO), '<N x="', ','), '"/>', ''), 1, 1, '')
+)N

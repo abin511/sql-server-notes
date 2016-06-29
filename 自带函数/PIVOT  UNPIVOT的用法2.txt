@@ -1,0 +1,43 @@
+create table tb(ID varchar(50),CName varchar(50),Amount money,ActionDate datetime) 
+insert into tb values('001','a',2000.00,'2008-02-28') 
+insert into tb values('001','a',1560.00,'2008-03-28') 
+insert into tb values('001','a',2040.00,'2008-01-28') 
+insert into tb values('001','a',1003.00,'2008-04-28') 
+insert into tb values('101','b',3100.00,'2008-03-28') 
+insert into tb values('101','b',4040.00,'2008-01-28') 
+insert into tb values('101','b',5003.00,'2008-04-28') 
+insert into tb values('101','b',2400.00,'2008-02-28') 
+insert into tb values('001','a',15000.00,'2007-12-21') 
+insert into tb values('101','b',22400.00,'2007-12-21') 
+/*********************************************************/
+---------要将数据转换成如下：
+ID CName 2007-12 2008-01 2008-02 2008-03 2008-04 
+
+001 a 15000.00 2040.00 2000.00 1560.00 1003.00 
+101 b 22400.00 4040.00 2400.00 3100.00 5003.00 
+/*********************************************************/
+--------实现步骤如下
+-----------------------------------------Step 1 ----------------------------------------------- 
+select ID,CName,sum(amount) as amount,left(convert(varchar(20),Actiondate,120),7) as Actiondate 
+into #tmp 
+from tb 
+group by ID,CName,left(convert(varchar(20),Actiondate,120),7) 
+--------------------------------------------Step2 ------------------------------------------------ 
+declare @sql varchar(max), @sqlAll nvarchar(max) 
+select @sql='' 
+select @sql=@sql+'['+Actiondate+'],' 
+from #tmp group by Actiondate 
+select @sql=left(@sql,len(@sql)-1) 
+print @sql 
+---------------------------------------------Step3 --------------------------------------------- 
+select @sqlAll=' 
+select * from #tmp s 
+pivot 
+(sum(amount) 
+for Actiondate in ('+@sql+') 
+) as P order by ID,CName ' 
+print @sqlAll 
+------Step4 
+exec sp_executesql @sqlAll 
+drop table #tmp 
+---------------------------------------------------------------------------------- 

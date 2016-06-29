@@ -1,0 +1,39 @@
+--2008将分组统计汇总的语句CUBE和ROLLUP改成符合ISO的格式，并添加了GROUPING SETS语法
+create table temptable
+(
+	name varchar(50),
+	proid int,
+	sales numeric(9,2)
+)
+go
+insert into temptable values('Jack', 1, 10)
+insert into temptable values('Jack', 2, 20)
+insert into temptable values('Jack', 1, 10)
+insert into temptable values('Jack', 1, 30)
+insert into temptable values('Jack', 2, 20)
+go
+
+--ROLLUP在GROUP基础上多出了一行总计，而CUBE则不仅有总计，还有每个子组的小计
+SELECT name,proid,SUM(sales)
+FROM temptable
+GROUP BY CUBE(name,proid)
+ORDER BY name,proid;
+
+SELECT name,proid,SUM(sales)
+FROM temptable
+GROUP BY ROLLUP(name,proid)
+ORDER BY name,proid;
+
+SELECT name,proid,SUM(sales)
+FROM temptable
+GROUP BY GROUPING SETS(name,proid)
+ORDER BY name,proid;
+
+--GROUPING SETS等同于下面的UNION ALL语句：
+SELECT name,NULL AS proid,SUM(sales)
+FROM temptable
+GROUP BY name
+UNION ALL
+SELECT NULL AS name,proid,SUM(sales)
+FROM temptable
+GROUP BY proid

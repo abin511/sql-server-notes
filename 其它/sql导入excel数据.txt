@@ -1,0 +1,74 @@
+/*        
+1）接受数据导入的表已经存在。          
+     insert into 表 select * from  OPENROWSET('MICROSOFT.JET.OLEDB.4.0'  ,        
+     'Excel 5.0;HDR=YES;DATABASE=c:\test.xls',sheet1$);          
+        
+2）导入数据并生成表。          
+     select * into 表 from  OPENROWSET('MICROSOFT.JET.OLEDB.4.0'  ,        
+     'Excel 5.0;HDR=YES;DATABASE=c:\test.xls',sheet1$);         
+        
+        
+3) 导入Excel中指定的列到数据库表中指定的列。        
+    INSERT INTO 表(a1,a2,a3) SELECT a1,a2,a3 FROM OPENROWSET('MICROSOFT.JET.OLEDB.4.0' ,        
+           'Excel 5.0;HDR=YES;DATABASE=c:\test.xls',sheet1$);        
+        
+需要注意的地方。        
+1）外围应用配置器的设置。        
+    从“功能外围应用配置器”中选择“启动 OPENROWSET 和 OPENDATASOURCE 支持”选项。        
+2）关闭Excel表。        
+     如果在导入时要导入的Excel表格处于打开状态，会提示：        
+   “无法初始化链接服务器 "(null)" 的 OLE DB 访问接口 "microsoft.jet.oledb.4.0" 的数据源对象。”        
+3）导入数据时，Excel的首行会作为表头，若导入到已存在的数据库表，则忽略首行。        
+        
+*/        
+/*判断数据库是否存在某张表        
+exec Excel_Add '项目3','下周工作计划','PRO_2009043090637项目3',      
+'C:\Documents and Settings\jianfeng\桌面\技术部周工作总结与计划表.xls',1,0,'测试的','李湘'      
+*/      
+ALTER procedure  Excel_Add           
+@New_tbName nvarchar(200),        
+@Old_tbName nvarchar(200),      
+@Tab_Name  nvarchar(300),       
+@Old_tbPath nvarchar(1000),        
+@ProType int,        
+@ProState int,        
+@Pro_Remark nvarchar(100),        
+@OperationName nvarchar(50)      
+as         
+DECLARE @_TabName Nvarchar(300)      
+DECLARE @Sql Nvarchar(4000),@_exists int   --注意数据类型       
+SET  @sql = 'SET @_exists=case when EXISTS( SELECT 1 FROM  OPENROWSET(''MICROSOFT.JET.OLEDB.4.0'',''Excel 5.0;HDR=YES;DATABASE='+@Old_tbPath+''','+@Old_tbName+'$) ) then 1 else 0 end '        
+--判断Excel数据源是否存在      
+execute sp_executesql @Sql,N'@_exists INT out',@_exists out      
+--开始一个事务                 
+BEGIN TRANSACTION excelInfo      
+IF @_exists = 1--当前数据源存在      
+   BEGIN       
+  --IF EXISTS(SELECT 1 FROM sysobjects WHERE TYPE='U' AND NAME = @New_tbName)--判断表存在，将当前数据插入到原表       
+  --如果导入数据成功的话，添加或者修改记录信息      
+  IF EXISTS(SELECT PKID FROM DataManage.DBO.Project_Info WHERE Pro_Name = @New_tbName)  --记录存在,修改日志，追加数据      
+    BEGIN     
+   UPDATE DataManage.DBO.Project_Info       
+   SET Pro_Type = @ProType,Pro_State = @ProState, Pro_Remark = @Pro_Remark,Pro_UpdateName=@OperationName,      
+    Pro_UpdateTime=GETDATE(),Pro_UpdateCount=Pro_UpdateCount+1 WHERE Pro_Name = @New_tbName      
+      SET @_TabName = (SELECT Tab_Name FROM DataManage.DBO.Project_Info  WHERE Pro_Name = @New_tbName)      
+   SET @Sql = 'INSERT INTO '+@_TabName+' SELECT NULL,0,NULL,NULL,0,NULL,NULL,* FROM OPENROWSET(''MICROSOFT.JET.OLEDB.4.0'' ,''Excel 5.0;HDR=YES;DATABASE='+@Old_tbPath+''','+@Old_tbName+'$)'      
+    END      
+  ELSE --无效,创建表    
+    BEGIN      
+    INSERT INTO DataManage.DBO.Project_Info(Pro_Name,Pro_Type,Pro_State,Pro_Remark,Pro_OperationName,Pro_OperationTime,Pro_UpdateName,Pro_UpdateTime,Pro_UpdateCount,Tab_Name)        
+    VALUES(@New_tbName,@ProType,@ProState,@Pro_Remark,@OperationName,GETDATE(),@OperationName,GETDATE(),0,@Tab_Name)  
+	--插入的表字段包括（自增，活动ID，活动分配状态，数据分配类型[个人、部门]，PKID，活动分配状态，分配时间，分配人员）     
+    SET @Sql = 'SELECT IDENTITY(INT,1,1) AS PKID,CONVERT(INT,NULL) AS DataInfo_PKID,0 AS Allot_DataInfo_State,
+				CONVERT(INT,NULL) AS AgentType,CONVERT(INT,NULL) AS Agent_PKID,0 AS Allot_Agent_State,
+				CONVERT(DATETIME,NULL) AS Allot_Date,CONVERT(NVARCHAR(50),NULL) AS Allot_ManID,* 
+				INTO '+@Tab_Name+' FROM  OPENROWSET(''MICROSOFT.JET.OLEDB.4.0'',''Excel 5.0;HDR=YES;DATABASE='+@Old_tbPath+''','+@Old_tbName+'$)
+				ALTER TABLE '+@Tab_Name+' ADD PRIMARY KEY(PKID) '       
+    END      
+  execute sp_executesql @Sql       
+  --事务判断IF @@error<>0 SET @_error = 1      
+  IF @@error<>0       
+   ROLLBACK TRANSACTION excelInfo --回滚事务    
+  ELSE      
+   COMMIT TRANSACTION excelInfo--结束一个事务      
+   END

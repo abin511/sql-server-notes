@@ -1,0 +1,29 @@
+create table tb(id varchar(3) , pid varchar(3) , name varchar(10))
+insert into tb values('001' , null  , '广东省')
+insert into tb values('002' , '001' , '广州市')
+insert into tb values('003' , '001' , '深圳市')
+insert into tb values('004' , '002' , '天河区')
+insert into tb values('005' , '003' , '罗湖区')
+insert into tb values('006' , '003' , '福田区')
+insert into tb values('007' , '003' , '宝安区')
+insert into tb values('008' , '007' , '西乡镇')
+insert into tb values('009' , '007' , '龙华镇')
+insert into tb values('010' , '007' , '松岗镇')
+go
+
+--查询指定节点及其所有父节点的函数
+create function f_pid(@id varchar(3)) returns @t_level table(id varchar(3))
+as
+begin
+  insert into @t_level select @id
+  select @id = pid from tb where id = @id and pid is not null
+  while @@ROWCOUNT > 0
+  begin
+    insert into @t_level select @id select @id = pid from tb where id = @id and pid is not null
+  end
+  return
+end
+go
+
+--调用函数查询002(广州市)及其所有父节点
+select a.* from tb a , f_pid('010') b where a.id = b.id order by a.id

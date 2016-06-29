@@ -1,0 +1,56 @@
+DECLARE @table TABLE(id INT, aa NVARCHAR(200), bb NVARCHAR(200) )
+INSERT INTO @table(id,aa,bb)
+SELECT 1, 'aa', 'bb'
+UNION all
+SELECT 2, 'aa1', 'bb'
+UNION all
+SELECT 3, 'aa', 'bb1'
+UNION all
+SELECT 4, 'aa', 'bb'
+UNION all
+SELECT 5, 'aa2', 'bb'
+UNION all
+SELECT 6, 'aa', 'bb1'
+UNION all
+SELECT 7, 'aa1', 'bb'
+
+SELECT * FROM @table 
+DELETE @table WHERE id IN (SELECT id FROM @table a WHERE EXISTS(SELECT id FROM @table b WHERE b.id>a.id AND a.aa=b.aa AND a.bb=b.bb) )
+SELECT * FROM @table
+
+
+
+/***删除重复的数据，没有唯一key***********************/
+INSERT INTO temp 
+SELECT  'A' AS COL1,'A1' AS COL2
+UNION ALL
+SELECT  'A','A1'
+UNION ALL
+SELECT 'A','A2'
+UNION ALL
+SELECT 'B','B1'
+UNION ALL
+SELECT 'B','B1'
+UNION ALL
+SELECT 'C','C1'
+UNION ALL
+SELECT  'D','D1'
+UNION ALL
+SELECT  'D','D1'
+UNION ALL
+SELECT  'D','D2'
+UNION ALL
+SELECT 'D','D2'
+
+SELECT * FROM temp
+
+
+with TT as (SELECT ROW_NUMBER() over(order by col1) as ID,* FROM temp )
+DELETE TT WHERE ID IN (SELECT ID FROM TT AS A WHERE EXISTS(SELECT ID FROM TT AS B WHERE B.ID < A.ID AND A.COL1=B.COL1 AND A.COL2=B.COL2))
+
+
+SELECT * FROM temp 
+
+
+
+

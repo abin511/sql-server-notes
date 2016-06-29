@@ -1,0 +1,35 @@
+一、计数器错误
+	
+然后在 “开始” -->  “运行”中输入 regedit，开启注册表编辑器。
+
+定位到
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Perflib
+处，在右边的树形目录下可以看到Perflib目录下有004和009两个子目录。
+
+打开004 目录中的内容，我们分别双击 “Counter” 项 和 “Help” 项，察看其中的最后的数字
+
+然后，操作注册表编辑器的左边的目录树，定位到Perflib目录下，并注意检查右边窗口的 “Laster Counter”项和“Laster Help”项的值，并把Laster Counter的值改成刚才记录下的Counter值5556，把Laster Help 的值改成刚才记下的 Help的值5557。
+
+要注意的是，修改数字的时候，输入的时候必须选则基数是 “十进制”，否则数字将不匹配，Sql Server 2005 检查将再次失败。
+
+二、SQL 2005安装问题 性能监视器计数器要求（错误）及超强解决办法
+
+运行 cmd 
+unlodctr w3svc 
+unlodctr msftpsvc 
+unlodctr asp 
+unlodctr inetinfo 
+
+以上是将4个计数器删除 
+
+
+lodctr w3ctrs.ini 
+lodctr ftpctrs.ini 
+lodctr axperf.ini 
+lodctr infoctrs.ini 
+
+这里是重新安装， 
+重新安装SQL2005现在应该没有问题了 
+
+三、启动服务
+Distributed Transaction Coordinator

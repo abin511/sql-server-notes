@@ -1,0 +1,91 @@
+--将字符串中从某个字符开始截取一段字符，然后将另外一个字符串插入此处
+select stuff('hello,world!',4,4,'****')   --返回值hel****orld!
+
+--返回从指定位置开始指定长度的字符串
+select substring('Hello,World!',2,10)   --返回值ello,World
+
+--将字符串中某段字符替换为指定的字符串
+select replace('hello,world!','ll','aa') --返回值heaao,world!
+
+--去除字符串中左边的空格
+select ltrim('   hello,world!')    --返回值hello,world!
+
+--去除字符串中右边的空格
+select rtrim('hello,world!   ')    --返回值hello,world!
+
+--将NULL值替换为指定字符
+select isnull('a',null)     --返回值a
+
+--转换数据类型
+select cast('2007-10-11' as datetime)   --返回值2007-10-11 00:00:00.000
+select convert(datetime,'2007-10-11')   --返回值2007-10-11 00:00:00.000
+
+--获取字符串长度
+select len('hello,world!')    --返回值12
+
+--获取字符串的前3个字符
+select left('hello,world!',3)    --返回值hel
+
+--获取字符串的后3个字符
+select right('hello,world!',3)    --返回值ld!
+
+--去除字符串的前3个字符
+select right('hello,world!',(len('hello,world!')-3)) --返回值lo,world!
+
+--去除字符串的后3个字符
+select left('hello,world!',(len('hello,world!')-3)) --返回值hello,wor
+
+--获取在该字符串中某字符串的位置(返回数字) 
+select charindex('e','hello,world!')   --返回值2
+
+--返回从第2个字符开始前4个字符
+select left(right('[哈哈哈哈]aaa',len('[哈哈哈哈]aaa')-1),4) --返回值哈哈哈哈
+
+--返回字符的小写形式
+select lower('HELLO,WORLD!')    --返回值hello,world!
+
+--返回字符的大写形式
+select UPPER('hello,world!')    --返回值HELLO,WORLD!
+
+--用第三个表达式替换第一个字符串表达式中出现的所有第二个指定字符串表达式的匹配项
+（如果其中有一个输入参数属于 nvarchar 数据类型，则返回 nvarchar；否则返回 varchar。如果任何一个参数为 NULL，则返回 NULL。）
+SELECT REPLACE('Hello,World!','l','a')   --返回值Heaao,Worad!
+SELECT REPLACE('Hello,World!','l','')   --返回值Heo,Word!
+SELECT REPLACE('Hello,World!','l',null)   --返回值NULL
+
+--以右边参数数值次数复制字符表达式
+select REPLICATE('Hello,World!',4)   --返回值Hello,World!Hello,World!Hello,World!Hello,World!
+
+--返回反转后的字符串
+select REVERSE('Hello,World!')    --返回值!dlroW,olleH
+
+--使用DIFFERENCE时，两个字符串发音越相似（仅限于英文字符），返回值越大（返回值在0-4之间）
+DIFFERENCE('sun','san')    --返回值4
+DIFFERENCE('sun','safdsdf')   --返回值3
+DIFFERENCE('sun','dgffgfdg')   --返回值0
+
+--将带小数点的数字类型转换为可设定长度可设定小数位的四舍五入后的字符串
+SELECT STR(123.34584, 7, 3)   --返回值123.346
+--当设定长度值小于整数部位长度时，字符串将返回设定长度个*
+SELECT STR(123333.34584, 5, 4)   --返回值*****
+
+--===================================================================================
+
+--=====================================数字操作汇总==================================
+
+--返回指定数字的最大整数
+select floor(123456.1234)   --返回值123456
+
+--返回不带小数部分并且不小于其参数的值的最小数字。如果参数是一个空序列，则返回空序列
+select ceiling(123.010)    --返回124
+select ceiling(null)    --返回NULL
+
+--返回四舍五入后的最接近该数值的数值
+select round(126.018,2)    --返回126.12
+
+--返回一个0-1之间的FLoat类型的随机数
+select rand()     --返回0.94170703697981
+
+--返回圆周率PI的值
+SELECT PI()     --返回3.14159265358979
+

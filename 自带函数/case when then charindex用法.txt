@@ -1,0 +1,88 @@
+/***统计**************************************************/
+SELECT callTime,
+SUM(case Direction when 0 then 1 else 0 end) as callout,
+SUM(case Direction when 1 then 1 else 0 end) as callIn,
+SUM(case Direction when 2 then 1 else 0 end) as callTransfer,
+COUNT(RecordID) as TotalStat from HongTaoK_DB_Cti.dbo.SheetRecord
+from 表 where group by
+
+/**SQL拼接统计*****************************************************/
+set @BaseSQL = 'select convert(varchar(10),OccurTime,120) as OccurTime,AgentID,MsiDn,
+sum(case AgtAction when ''LOGIN'' then 1 else 0 end) as LOGINs,
+sum(case AgtAction when ''LOGOUT'' then 1 else 0 end) as LOGOUTs,
+sum(case AgtAction when ''SETWORK'' then 1 else 0 end) as SETWORKs,
+sum(case AgtAction when ''SETIDLE'' then 1 else 0 end) as SETIDLEs,
+sum(case AgtAction when ''SETBUSY'' then 1 else 0 end) as SETBUSYs
+from HongTaoK_DB_Cti.dbo.AgentRecord '
+
+/***Case的结果后面加字符******************************************************/
+/*根据下拉菜单不同数据查询商品信息*/  
+CREATE procedure CRM_GetProductInfo  
+@type_Get int,    --"0"没有条件,查询商品类型(大类) "1"根据商品类型ID查询商品系列(中类)   
+@Num varchar(50)    --"2"根据商品系列ID查询商品信息(小类) "3"根据商品ID显示产品信息  
+as  
+declare @BaseSQL nvarchar(500)    
+  
+set @BaseSQL = (select   
+ case @type_Get  
+  when 0 then 'select * from aaa'  
+  when 1 then 'select * from bbb where bbb.aaaid = '  
+  when 2 then 'select * from ccc where ccc.bbbid = '  
+  when 3 then 'select * from ccc where ccc.cccid = '  
+  --else  
+ end + @Num)  
+exec (@BaseSQL)
+
+/**关于case的用法*****************************************************/
+--获取数据库最大编号
+--字段要求 年2位 月2位 日2位 后面自增6位 表名 Num 字段名 num
+select Convert(varchar(100), GETDATE(), 12) + 
+case Convert(varchar(100), GETDATE(), 12)
+when left(max(num),6) --当最大时间等于当前时间
+then (
+case len(right(max(num),6)+1) 
+when 0 then '000000' 
+when 1 then '00000' 
+when 2 then '0000' 
+when 3 then '000' 
+when 4 then '00' 
+when 5 then '0' 
+else '' 
+end + cast(right(max(num),6)+1 as varchar(10))) 
+else  '000001' /*最大日期不是今天，今天日期 + 000001*/
+end 
+from Num 
+/**************************************************/
+  SET @SQL = N'SELECT *,CASE WHEN DATEDIFF(DAY,ADDTIME,GETDATE())=0 THEN ''t'' WHEN DATEDIFF(WEEK,ADDTIME,GETDATE())=0 AND DATEDIFF(DAY,ADDTIME,GETDATE())<>0 THEN ''w'' WHEN DATEDIFF(WEEK,ADDTIME,GETDATE())=1 THEN ''s'' ELSE ''z'' END +CAST(ID AS VARCHAR(
+20)) as TRID FROM (SELECT TOP ' + CAST(@PAGESIZE AS NVARCHAR(10)) + @COLUNS + ' FROM ' + @TABLE + @SKEY + @SID + ' > (SELECT MAX(ID) FROM (SELECT TOP ' + CAST(((@THISPAGE - 1) * @PAGESIZE) AS NVARCHAR(10)) + N' ' + @SID + ' FROM ' + @TABLE + @IKEY + @IORD
+ER + ') AS MAXTABLE)' + @IORDER+')T'  
+
+/**********************************************************/
+//根据角色ID查找所有的大类权限，实例：where RoleID=（9,11,12,13,16,17,18,19,21,1,2,5,6）
+ string strSql = "SELECT A.PowerID,A.PowerName FROM HongTaoK_DB_CRM.DBO.Power AS A WHERE charindex(','+rtrim(A.PowerID)+',',','+(SELECT PowerID FROM HongTaoK_DB_CRM.DBO.Role WHERE RoleID = " + RoleID + ")+',')  >0 and ParentID = 0";
+
+charindex(子串，母串)找出子串在母串出现的Index 
+patindex(通配子串，母串)找出通配子串在母串出现的Index，按通配符的规则比较 
+charindex('b','abcde')  =2 
+patindex('%2%','abcde')  =2 
+
+declare @t table(v varchar(100))
+insert @t select '1abc'
+union all select '2abc'
+union all select 'dabc'
+
+--查出含abc的
+select * from @t where charindex('abc',v)>0
+select * from @t where patindex('%abc%',v)>0
+
+
+--查出以数字开头并含abc的
+select * from @t where patindex('[0-9]abc%',v)>0
+
+--实现这个功能，用charindex就比较麻烦了,需要借助其它语句
+
+select * from @t where v like '[0-9]%' and charindex('abc',v)>0
+select * from @t where v>'0' and v<='9' and charindex('abc',v)>0
+
+
+

@@ -1,0 +1,16 @@
+--更新TEST0的COL1，COL2 为TEST1的COL1，COL2
+UPDATE TEST0 SET [COL1]= A.[COL1] + B.[COL1],[COL2] = B.[COL2]
+FROM TEST0 AS A JOIN TEST1 AS B ON A.ID = B.ID
+
+--------------------------------------------------------
+两表(多表)关联update -- 被修改值由另一个表运算而来
+ update customers a     -- 使用别名
+ set city_name=(select b.city_name from tmp_cust_city b where b.customer_id=a.customer_id)
+ where  exists (select 1 from tmp_cust_city b where b.customer_id=a.customer_id)
+
+-- update 超过2个值
+ update customers a     -- 使用别名
+ set (city_name,customer_type)=
+(select b.city_name,b.customer_type from tmp_cust_city b where b.customer_id=a.customer_id)
+where exists (select 1 from tmp_cust_city b where b.customer_id=a.customer_id)
+

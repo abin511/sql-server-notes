@@ -1,0 +1,240 @@
+sql语句导出数据到EXCEL导入/导出Excel     
+--从Excel文件中,导入数据到SQL数据库中,很简单,直接用下面的语句:   
+/*===================================================================*/   
+--如果接受数据导入的表已经存在   
+insert   into   表   select   *   from     
+OPENROWSET('MICROSOFT.JET.OLEDB.4.0'   
+,'Excel   5.0;HDR=YES;DATABASE=c:\test.xls',sheet1$)   
+    
+--如果导入数据并生成表   
+select   *   into   表   from     
+OPENROWSET('MICROSOFT.JET.OLEDB.4.0'   
+,'Excel   5.0;HDR=YES;DATABASE=c:\test.xls',sheet1$)   
+    
+    
+/*===================================================================*/   
+--如果从SQL数据库中,导出数据到Excel,如果Excel文件已经存在,而且已经按照要接收的数据创建好表头,就可以简单的用:   
+insert   into   OPENROWSET('MICROSOFT.JET.OLEDB.4.0'   
+,'Excel   5.0;HDR=YES;DATABASE=c:\test.xls',sheet1$)   
+select   *   from   表   
+    
+    
+--如果Excel文件不存在,也可以用BCP来导成类Excel的文件,注意大小写:   
+--导出表的情况   
+EXEC   master..xp_cmdshell   'bcp   数据库名.dbo.表名   out   "c:\test.xls"   /c   -/S"服务器名"   /U"用户名"   -P"密码"'   
+    
+--导出查询的情况   
+EXEC   master..xp_cmdshell   'bcp   "SELECT   au_fname,   au_lname   FROM   pubs..authors   ORDER   BY   au_lname"   queryout   "c:\test.xls"   /c   -/S"服务器名"   /U"用户名"   -P"密码"'   
+    
+/*--说明:   
+c:\test.xls     为导入/导出的Excel文件名.   
+sheet1$             为Excel文件的工作表名,一般要加上$才能正常使用.   
+--*/   
+      
+    
+--下面是导出真正Excel文件的方法:   
+    
+if   exists   (select   *   from   dbo.sysobjects   where   id   =   object_id(N'[dbo].[p_exporttb]')   and   OBJECTPROPERTY(id,   N'IsProcedure')   =   1)   
+drop   procedure   [dbo].[p_exporttb]   
+GO   
+    
+/*--数据导出EXCEL   
+      
+    导出表中的数据到Excel,包含字段名,文件为真正的Excel文件   
+    ,如果文件不存在,将自动创建文件   
+    ,如果表不存在,将自动创建表   
+    基于通用性考虑,仅支持导出标准数据类型   
+    
+--邹建   2003.10(引用请保留此信息)--*/   
+    
+/*--调用示例   
+    
+    p_exporttb   @tbname='地区资料',@path='c:\',@fname='aa.xls'   
+--*/   
+create   proc   p_exporttb   
+@tbname   sysname,         --要导出的表名   
+@path   nvarchar(1000),       --文件存放目录   
+@fname   nvarchar(250)=''     --文件名,默认为表名   
+as   
+declare   @err   int,@src   nvarchar(255),@desc   nvarchar(255),@out   int   
+declare   @obj   int,@constr   nvarchar(1000),@sql   varchar(8000),@fdlist   varchar(8000)   
+    
+--参数检测   
+if   isnull(@fname,'')=''   set   @fname=@tbname+'.xls'   
+    
+--检查文件是否已经存在   
+if   right(@path,1)<>'\'   set   @path=@path+'\'   
+create   table   #tb(a   bit,b   bit,c   bit)   
+set   @sql=@path+@fname   
+insert   into   #tb   exec   master..xp_fileexist   @sql   
+    
+--数据库创建语句   
+set   @sql=@path+@fname   
+if   exists(select   1   from   #tb   where   a=1)   
+    set   @constr='DRIVER={Microsoft   Excel   Driver   (*.xls)};DSN='''';READONLY=FALSE'   
+                +';CREATE_DB="'+@sql+'";DBQ='+@sql   
+else   
+    set   @constr='Provider=Microsoft.Jet.OLEDB.4.0;Extended   Properties="Excel   8.0;HDR=YES'   
+          +';DATABASE='+@sql+'"'   
+    
+    
+--连接数据库   
+exec   @err=sp_oacreate   'adodb.connection',@obj   out   
+if   @err<>0   goto   lberr   
+    
+exec   @err=sp_oamethod   @obj,'open',null,@constr   
+if   @err<>0   goto   lberr   
+    
+/*--如果覆盖已经存在的表,就加上下面的语句   
+--创建之前先删除表/如果存在的话   
+select   @sql='drop   table   ['+@tbname+']'   
+exec   @err=sp_oamethod   @obj,'execute',@out   out,@sql   
+--*/   
+    
+--创建表的SQL   
+select   @sql='',@fdlist=''   
+select   @fdlist=@fdlist+',['+a.name+']'   
+    ,@sql=@sql+',['+a.name+']   '   
+      +case     
+        when   b.name   like   '%char'     
+        then   case   when   a.length>255   then   'memo'   
+          else   'text('+cast(a.length   as   varchar)+')'   end   
+        when   b.name   like   '%int'   or   b.name='bit'   then   'int'   
+        when   b.name   like   '%datetime'   then   'datetime'   
+        when   b.name   like   '%money'   then   'money'   
+        when   b.name   like   '%text'   then   'memo'   
+        else   b.name   end   
+FROM   syscolumns   a   left   join   systypes   b   on   a.xtype=b.xusertype   
+where   b.name   not   in('image','uniqueidentifier','sql_variant','varbinary','binary','timestamp')   
+    and   object_id(@tbname)=id   
+select   @sql='create   table   ['+@tbname   
+    +']('+substring(@sql,2,8000)+')'   
+    ,@fdlist=substring(@fdlist,2,8000)   
+exec   @err=sp_oamethod   @obj,'execute',@out   out,@sql   
+if   @err<>0   goto   lberr   
+    
+exec   @err=sp_oadestroy   @obj   
+    
+--导入数据   
+set   @sql='openrowset(''MICROSOFT.JET.OLEDB.4.0'',''Excel   8.0;HDR=YES;IMEX=1   
+        ;DATABASE='+@path+@fname+''',['+@tbname+'$])'   
+    
+exec('insert   into   '+@sql+'('+@fdlist+')   select   '+@fdlist+'   from   '+@tbname)   
+    
+return   
+    
+lberr:   
+    exec   sp_oageterrorinfo   0,@src   out,@desc   out   
+lbexit:   
+    select   cast(@err   as   varbinary(4))   as   错误号   
+      ,@src   as   错误源,@desc   as   错误描述   
+    select   @sql,@constr,@fdlist   
+go   
+      
+    
+    
+if   exists   (select   *   from   dbo.sysobjects   where   id   =   object_id(N'[dbo].[p_exporttb]')   and   OBJECTPROPERTY(id,   N'IsProcedure')   =   1)   
+drop   procedure   [dbo].[p_exporttb]   
+GO   
+    
+/*--数据导出EXCEL   
+      
+    导出查询中的数据到Excel,包含字段名,文件为真正的Excel文件   
+    如果文件不存在,将自动创建文件   
+    如果表不存在,将自动创建表   
+    基于通用性考虑,仅支持导出标准数据类型   
+    
+--邹建   2003.10(引用请保留此信息)--*/   
+    
+/*--调用示例   
+    
+    p_exporttb   @sqlstr='select   *   from   地区资料'   
+      ,@path='c:\',@fname='aa.xls',@sheetname='地区资料'   
+--*/   
+create   proc   p_exporttb   
+@sqlstr   varchar(8000),       --查询语句,如果查询语句中使用了order   by   ,请加上top   100   percent   
+@path   nvarchar(1000),       --文件存放目录   
+@fname   nvarchar(250),       --文件名   
+@sheetname   varchar(250)=''     --要创建的工作表名,默认为文件名   
+as     
+declare   @err   int,@src   nvarchar(255),@desc   nvarchar(255),@out   int   
+declare   @obj   int,@constr   nvarchar(1000),@sql   varchar(8000),@fdlist   varchar(8000)   
+    
+--参数检测   
+if   isnull(@fname,'')=''   set   @fname='temp.xls'   
+if   isnull(@sheetname,'')=''   set   @sheetname=replace(@fname,'.','#')   
+    
+--检查文件是否已经存在   
+if   right(@path,1)<>'\'   set   @path=@path+'\'   
+create   table   #tb(a   bit,b   bit,c   bit)   
+set   @sql=@path+@fname   
+insert   into   #tb   exec   master..xp_fileexist   @sql   
+    
+--数据库创建语句   
+set   @sql=@path+@fname   
+if   exists(select   1   from   #tb   where   a=1)   
+    set   @constr='DRIVER={Microsoft   Excel   Driver   (*.xls)};DSN='''';READONLY=FALSE'   
+                +';CREATE_DB="'+@sql+'";DBQ='+@sql   
+else   
+    set   @constr='Provider=Microsoft.Jet.OLEDB.4.0;Extended   Properties="Excel   8.0;HDR=YES'   
+          +';DATABASE='+@sql+'"'   
+    
+--连接数据库   
+exec   @err=sp_oacreate   'adodb.connection',@obj   out   
+if   @err<>0   goto   lberr   
+    
+exec   @err=sp_oamethod   @obj,'open',null,@constr   
+if   @err<>0   goto   lberr   
+    
+--创建表的SQL   
+declare   @tbname   sysname   
+set   @tbname='##tmp_'+convert(varchar(38),newid())   
+set   @sql='select   *   into   ['+@tbname+']   from('+@sqlstr+')   a'   
+exec(@sql)   
+    
+select   @sql='',@fdlist=''   
+select   @fdlist=@fdlist+',['+a.name+']'   
+    ,@sql=@sql+',['+a.name+']   '   
+      +case     
+        when   b.name   like   '%char'     
+        then   case   when   a.length>255   then   'memo'   
+          else   'text('+cast(a.length   as   varchar)+')'   end   
+        when   b.name   like   '%int'   or   b.name='bit'   then   'int'   
+        when   b.name   like   '%datetime'   then   'datetime'   
+        when   b.name   like   '%money'   then   'money'   
+        when   b.name   like   '%text'   then   'memo'   
+        else   b.name   end   
+FROM   tempdb..syscolumns   a   left   join   tempdb..systypes   b   on   a.xtype=b.xusertype   
+where   b.name   not   in('image','uniqueidentifier','sql_variant','varbinary','binary','timestamp')   
+    and   a.id=(select   id   from   tempdb..sysobjects   where   name=@tbname)   
+    
+if   @@rowcount=0   return   
+    
+select   @sql='create   table   ['+@sheetname   
+    +']('+substring(@sql,2,8000)+')'   
+    ,@fdlist=substring(@fdlist,2,8000)   
+    
+exec   @err=sp_oamethod   @obj,'execute',@out   out,@sql   
+if   @err<>0   goto   lberr   
+    
+exec   @err=sp_oadestroy   @obj   
+    
+--导入数据   
+set   @sql='openrowset(''MICROSOFT.JET.OLEDB.4.0'',''Excel   8.0;HDR=YES   
+        ;DATABASE='+@path+@fname+''',['+@sheetname+'$])'   
+    
+exec('insert   into   '+@sql+'('+@fdlist+')   select   '+@fdlist+'   from   ['+@tbname+']')   
+    
+set   @sql='drop   table   ['+@tbname+']'   
+exec(@sql)   
+return   
+    
+lberr:   
+    exec   sp_oageterrorinfo   0,@src   out,@desc   out   
+lbexit:   
+    select   cast(@err   as   varbinary(4))   as   错误号   
+      ,@src   as   错误源,@desc   as   错误描述   
+    select   @sql,@constr,@fdlist   
+go 
+ 
+

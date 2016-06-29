@@ -1,0 +1,176 @@
+create table test(city varchar(10), temp varchar(10)) 
+insert test select  
+'广州','热' union select  
+'上海','冷'  union select 
+'深圳','凉快' 
+go 
+
+declare @s varchar(8000)  
+select @s= isnull(@s+',','')+'['+city+']=max(case when city = '''+city+''' then temp else null end)'  
+from test  
+
+exec('select '+ @s + ' from test ') 
+
+drop table test  
+
+/* 
+
+广州         上海         深圳          
+---------- ---------- ----------  
+热          冷          凉快 
+
+警告: 聚合或其它 SET 操作消除了空值。 
+*/
+
+/**********************************************************/
+/*
+-- Author:Flystone 
+-- Version:V1.001  Date:2008-05-15   初稿
+-- Version:V1.002  Date:2008-05-16  1、 处理空格带来的异常
+--                                  2、 增加了形如yyyy-mm-dd hh:mm:ss
+--                                               yyyy-m-d h:m:s     格式的处理
+*/
+
+-- Test Data: ta
+If object_id('ta') is not null 
+    Drop table ta
+Go
+Create table ta(xm varchar(10),v int,pos int)
+Go
+Insert into ta
+ select '项目1',15,1 union all
+ select '项目1',34,2 union all
+ select '项目1',56,3 union all
+ select '项目1',42,4 union all
+ select '项目2',56,1 union all
+ select '项目2',67,2 union all
+ select '项目2',31,3 union all
+ select '项目2',89,4 union all
+ select '项目3',45,1 union all
+ select '项目3',22,2 union all
+ select '项目3',8,3 union all
+ select '项目3',23,4 
+Go
+--Start
+declare @s varchar(1000)
+select @s = isnull(@s +',','')+ '['+xm+']= max(case when xm = '''+xm+''' then v else 0 end)'
+from (select distinct xm from ta) a
+
+exec('select '+@s + ',pos from ta group by pos')
+
+
+--Result:
+/*
+项目1         项目2         项目3         pos         
+----------- ----------- ----------- ----------- 
+15          56          45          1
+34          67          22          2
+56          31          8           3
+42          89          23          4
+
+*/
+--End 
+/************************************************************************************************/
+
+
+
+--> --> (Roy)生成測試數據
+ 
+set nocount on;
+if not object_id('Tempdb..#T') is null
+    drop table #T
+Go
+set nocount on;
+Create table #T([项目] nvarchar(3),[值] int,[位置] int)
+Insert #T
+select N'项目1',15,1 union all
+select N'项目1',34,2 union all
+select N'项目1',56,3 union all
+select N'项目1',42,4 union all
+select N'项目2',56,1 union all
+select N'项目2',67,2 union all
+select N'项目2',31,3 union all
+select N'项目2',89,4 union all
+select N'项目3',45,1 union all
+select N'项目3',22,2 union all
+select N'项目3',8,3 union all
+select N'项目3',23,4
+Go
+declare @s nvarchar(1000)
+select @s=isnull(@s+',','')+quotename([项目]) from #T group by [项目]
+exec('select '+@s+',[位置] from #T pivot (max([值]) for [项目] in('+@s+'))b')
+
+
+项目1         项目2         项目3         位置
+----------- ----------- ----------- -----------
+15          56          45          1
+34          67          22          2
+56          31          8           3
+42          89          23          4
+
+
+
+/*****************************************************************************/
+--PIVOT：选取一系列行，然后按条件转换成列，通常多用于显示报表
+--UNPIVOT：与PIVOT功能正相反，多用于做数据转换，或重新设计数据库时
+
+create table sales
+(
+	year char(4),
+	month char(3),
+	amount money,
+	primary key (year, month)
+)
+go
+insert into sales(year, month, amount) values('2010', 'jan', 789)
+insert into sales(year, month, amount) values('2010', 'feb', 389)
+insert into sales(year, month, amount) values('2010', 'mar', 8867)
+insert into sales(year, month, amount) values('2010', 'apr', 778)
+insert into sales(year, month, amount) values('2010', 'may', 78)
+insert into sales(year, month, amount) values('2010', 'jun', 9)
+insert into sales(year, month, amount) values('2010', 'jul', 987)
+insert into sales(year, month, amount) values('2010', 'aug', 866)
+insert into sales(year, month, amount) values('2010', 'sep', 7787)
+insert into sales(year, month, amount) values('2010', 'oct', 855)
+insert into sales(year, month, amount) values('2010', 'nov', 5878)
+insert into sales(year, month, amount) values('2011', 'jan', 7)
+insert into sales(year, month, amount) values('2011', 'feb', 6868)
+insert into sales(year, month, amount) values('2011', 'mar', 688)
+insert into sales(year, month, amount) values('2011', 'apr', 9897)
+
+select * from sales
+--使用旧版本的行列转换
+select year,
+	SUM(case when month = 'jan' then amount else 0 end) as C1,
+	SUM(case when month = 'feb' then amount else 0 end) as C2,
+	SUM(case when month = 'mar' then amount else 0 end) as C3,
+	SUM(case when month = 'apr' then amount else 0 end) as C4,
+	SUM(case when month = 'may' then amount else 0 end) as C5,
+	SUM(case when month = 'jun' then amount else 0 end) as C6,
+	SUM(case when month = 'jul' then amount else 0 end) as C7,
+	SUM(case when month = 'aug' then amount else 0 end) as C8,
+	SUM(case when month = 'sep' then amount else 0 end) as C9,
+	SUM(case when month = 'oct' then amount else 0 end) as C10,
+	SUM(case when month = 'nov' then amount else 0 end) as C11,
+	SUM(case when month = 'dec' then amount else 0 end) as C12
+from sales
+group by year
+
+--使用新版本的行列转换
+select year,
+	[jan] as C1,[feb] as C2,[mar] as C3,[apr] as C4,[may] as C5,[jun] as C6,
+	[jul] as C7,[aug] as C8,[sep] as C9,[oct] as C10,[nov] as C11,[dec] as C12
+from sales
+pivot
+(
+	sum(amount) for month in
+	(
+		[jan],[feb],[mar],[apr],[may],[jun],[jul],[aug],[sep],[oct],[nov],[dec]
+	)
+) as tmp
+
+--PIVOT也不支持动态列值，但动态SQL语句更简单
+declare @sql varchar(max)
+select @sql = isnull(@sql + ',' , '') + '[' + month + ']' from sales group by month
+exec ('select * from sales pivot (sum(amount) for month in (' + @sql + ')) as tmp')
+go

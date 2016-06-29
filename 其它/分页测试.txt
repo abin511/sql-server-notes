@@ -1,0 +1,64 @@
+ --插入测试数据200w条，可能会很久
+create table Student(
+  Id int PRIMARY KEY identity(1,1),
+  Name nvarchar(50),
+  Age int
+)
+insert Student(Name,Age)values('Name',18)
+while (select count(*) from Student)<1000000
+  insert Student select Name,Age from Student
+--DROP TABLE Student
+ 
+ --开始测试查询  876ms
+declare @now datetime
+select 'max'方案
+select @now=getdate()
+--begin
+select top 100010 * from Student
+where Id>(
+  select max(Id)
+  from (
+    select top 199990 Id from Student order by Id)tt)
+--end
+select datediff(ms,@now,getdate())
+-----------------------------------------------
+ --开始测试查询 906ms
+declare @now datetime
+select 'top'方案
+select @now=getdate()
+--begin
+select top 100010 * from Student
+where Id not in(select top  199990 Id from Student)
+--end
+select datediff(ms,@now,getdate())
+----------------------------------------------
+ --开始测试查询  1000ms
+declare @now datetime
+select 'row'方案
+select @now=getdate()
+--begin
+select *
+from (
+select row_number()over(order by tc)rn,*
+from (select top 199990 0 tc,* from Student)t
+)tt
+where rn>99980
+--end
+select datediff(ms,@now,getdate())
+------------------------------------
+ --开始测试查询  953ms
+declare @now datetime
+select 'row_number'方案
+select @now=getdate()
+--begin
+select *
+from(
+select top 199990 row_number()over(order by Id)rn,* from Student
+)t
+where rn>99980
+--end
+select datediff(ms,@now,getdate())
+
+
+
+

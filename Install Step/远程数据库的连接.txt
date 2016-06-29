@@ -1,0 +1,24 @@
+--创建链接服务器   
+--exec sp_addlinkedserver   'MyDB', '', 'SQLOLEDB', '192.168.1.28'   
+--exec sp_addlinkedsrvlogin  'MyDB ', 'false ',null, 'sa', 'callcenter2008'   
+--查询示例   
+--select * from MyDB.HongTaoK_DB_Cti.dbo.BlackList   
+--连接远程/局域网数据(openrowset/openquery/opendatasource)   
+--1、openrowset   
+--查询示例   
+--select * from openrowset( 'SQLOLEDB ', 'sql服务器名 '; '用户名 '; '密码 ',数据库名.dbo.表名)   
+--生成本地表   
+--select * into 表 from openrowset( 'SQLOLEDB ', 'sql服务器名 '; '用户名 '; '密码 ',数据库名.dbo.表名)   
+--把本地表导入远程表   
+--insert openrowset( 'SQLOLEDB ', 'sql服务器名 '; '用户名 '; '密码 ',数据库名.dbo.表名)   
+--select *from 本地表  
+--declare @a int   
+--exec CRM_AddBlackList '48qq79jjjggg8h7','488','张小洁',@a  
+
+/***********************************************************/
+
+--以后不再使用时删除链接服务器   
+--exec sp_dropserver  'MyDB ', 'droplogins'
+
+--备份数据库
+--backup   database/*[log 日志 database 数据库]*/   test   to   disk='C:\back.bak'   with   init/*(differential差异， init 重写， noinit 追加)*/,name = '数据库备份',description = 'full4'
